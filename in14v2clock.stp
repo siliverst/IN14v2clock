@@ -1,0 +1,493 @@
+;	STMicroelectronics Project file
+
+[Version]
+Keyword=ST7Project
+Number=1.3
+
+[Project]
+Name=in14v2clock
+Toolset=STM8 Cosmic
+
+[Config]
+0=Config.0
+1=Config.1
+
+[Config.0]
+ConfigName=Debug
+Target=in14v2clock.elf
+OutputFolder=Debug
+Debug=$(TargetFName)
+
+[Config.1]
+ConfigName=Release
+Target=in14v2clock.elf
+OutputFolder=Release
+Debug=$(TargetFName)
+
+[Root]
+ElemType=Project
+PathName=in14v2clock
+Child=Root.Source Files
+Config.0=Root.Config.0
+Config.1=Root.Config.1
+
+[Root.Config.0]
+Settings.0.0=Root.Config.0.Settings.0
+Settings.0.1=Root.Config.0.Settings.1
+Settings.0.2=Root.Config.0.Settings.2
+Settings.0.3=Root.Config.0.Settings.3
+Settings.0.4=Root.Config.0.Settings.4
+Settings.0.5=Root.Config.0.Settings.5
+Settings.0.6=Root.Config.0.Settings.6
+Settings.0.7=Root.Config.0.Settings.7
+Settings.0.8=Root.Config.0.Settings.8
+
+[Root.Config.1]
+Settings.1.0=Root.Config.1.Settings.0
+Settings.1.1=Root.Config.1.Settings.1
+Settings.1.2=Root.Config.1.Settings.2
+Settings.1.3=Root.Config.1.Settings.3
+Settings.1.4=Root.Config.1.Settings.4
+Settings.1.5=Root.Config.1.Settings.5
+Settings.1.6=Root.Config.1.Settings.6
+Settings.1.7=Root.Config.1.Settings.7
+Settings.1.8=Root.Config.1.Settings.8
+
+[Root.Config.0.Settings.0]
+String.6.0=2024,11,4,10,36,5
+String.100.0=ST Assembler Linker
+String.100.1=ST7 Cosmic
+String.100.2=STM8 Cosmic
+String.100.3=ST7 Metrowerks V1.1
+String.100.4=Raisonance
+String.101.0=STM8 Cosmic
+String.102.0=C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8
+String.103.0=
+String.104.0=Hstm8
+String.105.0=Lib
+String.106.0=Debug
+String.107.0=in14v2clock.elf
+Int.108=0
+
+[Root.Config.0.Settings.1]
+String.6.0=2024,11,4,10,36,5
+String.100.0=$(TargetFName)
+String.101.0=
+String.102.0=
+String.103.0=.\;stm8s_stdperiph_driver\inc;stm8s_stdperiph_driver\src;stm8_headers\include;
+
+[Root.Config.0.Settings.2]
+String.2.0=
+String.6.0=2024,11,4,10,36,5
+String.100.0=STM8S103F3P
+
+[Root.Config.0.Settings.3]
+String.2.0=Compiling $(InputFile)...
+String.3.0=cxstm8 +mods0 -customDebCompat -customOpt-no -customC-pp -customLst -l -dSTM8S003 -istm8_headers\include -istm8s_stdperiph_driver\inc $(ToolsetIncOpts) -cl$(IntermPath) -co$(IntermPath) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,12,3,22,40,44
+
+[Root.Config.0.Settings.4]
+String.2.0=Assembling $(InputFile)...
+String.3.0=castm8 -xx -l $(ToolsetIncOpts) -o$(IntermPath)$(InputName).$(ObjectExt) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,11,4,10,36,5
+
+[Root.Config.0.Settings.5]
+String.2.0=Running Pre-Link step
+String.6.0=2024,11,4,10,36,5
+String.8.0=
+
+[Root.Config.0.Settings.6]
+String.2.0=Running Linker
+String.3.0=clnk -customMapFile -customMapFile-m $(OutputPath)$(TargetSName).map -fakeRunConv  -fakeInteger  -fakeSemiAutoGen  $(ToolsetLibOpts)  -o $(OutputPath)$(TargetSName).sm8 -fakeOutFile$(ProjectSFile).elf -customCfgFile $(OutputPath)$(TargetSName).lkf -fakeVectFilestm8_interrupt_vector.c    -fakeStartupcrtsi0.sm8 
+String.3.1=cvdwarf $(OutputPath)$(TargetSName).sm8 -fakeVectAddr0x8000
+String.4.0=$(OutputPath)$(TargetFName)
+String.5.0=
+String.6.0=2024,11,4,10,43,20
+String.100.0=
+String.101.0=crtsi.st7
+String.102.0=+seg .const -b 0x8080 -m 0x1f80  -n .const -it 
+String.102.1=+seg .text -a .const  -n .text 
+String.102.2=+seg .eeprom -b 0x4000 -m 0x280  -n .eeprom 
+String.102.3=+seg .bsct -b 0x0 -m 0x100  -n .bsct 
+String.102.4=+seg .ubsct -a .bsct  -n .ubsct 
+String.102.5=+seg .bit -a .ubsct  -n .bit -id 
+String.102.6=+seg .share -a .bit  -n .share -is 
+String.102.7=+seg .data -b 0x100 -m 0x100  -n .data 
+String.102.8=+seg .bss -a .data  -n .bss 
+String.103.0=Code,Constants[0x8080-0x9fff]=.const,.text
+String.103.1=Eeprom[0x4000-0x427f]=.eeprom
+String.103.2=Zero Page[0x0-0xff]=.bsct,.ubsct,.bit,.share
+String.103.3=Ram[0x100-0x1ff]=.data,.bss
+String.104.0=0x3ff
+Int.0=0
+Int.1=0
+
+[Root.Config.0.Settings.7]
+String.2.0=Running Post-Build step
+String.3.0=chex -o $(OutputPath)$(TargetSName).s19 $(OutputPath)$(TargetSName).sm8
+String.6.0=2024,11,4,10,36,5
+
+[Root.Config.0.Settings.8]
+String.2.0=Performing Custom Build on $(InputFile)
+String.6.0=2024,11,4,10,36,5
+
+[Root.Config.1.Settings.0]
+String.6.0=2024,11,4,10,36,5
+String.100.0=ST Assembler Linker
+String.100.1=ST7 Cosmic
+String.100.2=STM8 Cosmic
+String.100.3=ST7 Metrowerks V1.1
+String.100.4=Raisonance
+String.101.0=STM8 Cosmic
+String.102.0=C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8
+String.103.0=
+String.104.0=Hstm8
+String.105.0=Lib
+String.106.0=Release
+String.107.0=in14v2clock.elf
+Int.108=0
+
+[Root.Config.1.Settings.1]
+String.6.0=2024,12,10,16,7,16
+String.100.0=$(TargetFName)
+String.101.0=
+String.102.0=
+String.103.0=.\;stm8_headers\include;
+
+[Root.Config.1.Settings.2]
+String.2.0=
+String.6.0=2024,11,4,10,36,5
+String.100.0=STM8S103F3P
+
+[Root.Config.1.Settings.3]
+String.2.0=Compiling $(InputFile)...
+String.3.0=cxstm8 +mods0 -customOpt -no +fast -customC-pp -customLst-l -dSTM8S003 -istm8_headers\include -istm8s_stdperiph_driver\inc $(ToolsetIncOpts) -cl$(IntermPath) -co$(IntermPath) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,11,22,16,36,5
+
+[Root.Config.1.Settings.4]
+String.2.0=Assembling $(InputFile)...
+String.3.0=castm8 $(ToolsetIncOpts) -o$(IntermPath)$(InputName).$(ObjectExt) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,11,4,10,36,5
+
+[Root.Config.1.Settings.5]
+String.2.0=Running Pre-Link step
+String.6.0=2024,11,4,10,36,5
+String.8.0=
+
+[Root.Config.1.Settings.6]
+String.2.0=Running Linker
+String.3.0=clnk -fakeRunConv  -fakeInteger  -fakeSemiAutoGen  $(ToolsetLibOpts)  -o $(OutputPath)$(TargetSName).sm8 -fakeOutFile$(ProjectSFile).elf -customCfgFile $(OutputPath)$(TargetSName).lkf -fakeVectFilestm8_interrupt_vector.c    -fakeStartupcrtsi0.sm8 
+String.3.1=cvdwarf $(OutputPath)$(TargetSName).sm8 -fakeVectAddr0x8000
+String.4.0=$(OutputPath)$(TargetFName)
+String.5.0=
+String.6.0=2024,11,4,10,43,20
+String.100.0=
+String.101.0=crtsi.st7
+String.102.0=+seg .const -b 0x8080 -m 0x1f80  -n .const -it 
+String.102.1=+seg .text -a .const  -n .text 
+String.102.2=+seg .eeprom -b 0x4000 -m 0x280  -n .eeprom 
+String.102.3=+seg .bsct -b 0x0 -m 0x100  -n .bsct 
+String.102.4=+seg .ubsct -a .bsct  -n .ubsct 
+String.102.5=+seg .bit -a .ubsct  -n .bit -id 
+String.102.6=+seg .share -a .bit  -n .share -is 
+String.102.7=+seg .data -b 0x100 -m 0x100  -n .data 
+String.102.8=+seg .bss -a .data  -n .bss 
+String.103.0=Code,Constants[0x8080-0x9fff]=.const,.text
+String.103.1=Eeprom[0x4000-0x427f]=.eeprom
+String.103.2=Zero Page[0x0-0xff]=.bsct,.ubsct,.bit,.share
+String.103.3=Ram[0x100-0x1ff]=.data,.bss
+String.104.0=0x3ff
+Int.0=0
+Int.1=0
+
+[Root.Config.1.Settings.7]
+String.2.0=Running Post-Build step
+String.3.0=chex -o $(OutputPath)$(TargetSName).s19 $(OutputPath)$(TargetSName).sm8
+String.6.0=2024,11,4,10,36,5
+
+[Root.Config.1.Settings.8]
+String.2.0=Performing Custom Build on $(InputFile)
+String.6.0=2024,11,4,10,36,5
+
+[Root.Source Files]
+ElemType=Folder
+PathName=Source Files
+Child=Root.Source Files.iwdg.c
+Next=Root.Include Files
+Config.0=Root.Source Files.Config.0
+Config.1=Root.Source Files.Config.1
+
+[Root.Source Files.Config.0]
+Settings.0.0=Root.Source Files.Config.0.Settings.0
+Settings.0.1=Root.Source Files.Config.0.Settings.1
+Settings.0.2=Root.Source Files.Config.0.Settings.2
+Settings.0.3=Root.Source Files.Config.0.Settings.3
+
+[Root.Source Files.Config.1]
+Settings.1.0=Root.Source Files.Config.1.Settings.0
+Settings.1.1=Root.Source Files.Config.1.Settings.1
+Settings.1.2=Root.Source Files.Config.1.Settings.2
+Settings.1.3=Root.Source Files.Config.1.Settings.3
+
+[Root.Source Files.Config.0.Settings.0]
+String.6.0=2024,11,4,10,36,5
+String.8.0=Debug
+Int.0=0
+Int.1=0
+
+[Root.Source Files.Config.0.Settings.1]
+String.2.0=Compiling $(InputFile)...
+String.3.0=cxstm8 +mods0 -customDebCompat -customOpt-no -customC-pp -customLst -l -dSTM8S003 -istm8_headers\include -istm8s_stdperiph_driver\inc $(ToolsetIncOpts) -cl$(IntermPath) -co$(IntermPath) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,12,3,22,40,44
+
+[Root.Source Files.Config.0.Settings.2]
+String.2.0=Assembling $(InputFile)...
+String.3.0=castm8 -xx -l $(ToolsetIncOpts) -o$(IntermPath)$(InputName).$(ObjectExt) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,11,4,10,36,5
+
+[Root.Source Files.Config.0.Settings.3]
+String.2.0=Performing Custom Build on $(InputFile)
+String.3.0=
+String.4.0=
+String.5.0=
+String.6.0=2024,11,4,10,36,5
+
+[Root.Source Files.Config.1.Settings.0]
+String.6.0=2024,11,4,10,36,5
+String.8.0=Release
+Int.0=0
+Int.1=0
+
+[Root.Source Files.Config.1.Settings.1]
+String.2.0=Compiling $(InputFile)...
+String.3.0=cxstm8 +mods0 -customOpt -no +fast -customC-pp -customLst-l -dSTM8S003 -istm8_headers\include -istm8s_stdperiph_driver\inc $(ToolsetIncOpts) -cl$(IntermPath) -co$(IntermPath) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,11,22,16,36,5
+
+[Root.Source Files.Config.1.Settings.2]
+String.2.0=Assembling $(InputFile)...
+String.3.0=castm8 $(ToolsetIncOpts) -o$(IntermPath)$(InputName).$(ObjectExt) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,11,4,10,36,5
+
+[Root.Source Files.Config.1.Settings.3]
+String.2.0=Performing Custom Build on $(InputFile)
+String.3.0=
+String.4.0=
+String.5.0=
+String.6.0=2024,11,4,10,36,5
+
+[Root.Source Files.iwdg.c]
+ElemType=File
+PathName=iwdg.c
+Next=Root.Source Files.keyboard.c
+
+[Root.Source Files.keyboard.c]
+ElemType=File
+PathName=keyboard.c
+Next=Root.Source Files.keyevents.c
+
+[Root.Source Files.keyevents.c]
+ElemType=File
+PathName=keyevents.c
+Next=Root.Source Files.eeprom.c
+
+[Root.Source Files.eeprom.c]
+ElemType=File
+PathName=eeprom.c
+Next=Root.Source Files.iface.c
+
+[Root.Source Files.iface.c]
+ElemType=File
+PathName=iface.c
+Next=Root.Source Files.display.c
+
+[Root.Source Files.display.c]
+ElemType=File
+PathName=display.c
+Next=Root.Source Files.ds3231.c
+
+[Root.Source Files.ds3231.c]
+ElemType=File
+PathName=ds3231.c
+Next=Root.Source Files.hc595.c
+
+[Root.Source Files.hc595.c]
+ElemType=File
+PathName=hc595.c
+Next=Root.Source Files.i2c.c
+
+[Root.Source Files.i2c.c]
+ElemType=File
+PathName=i2c.c
+Next=Root.Source Files.main.c
+
+[Root.Source Files.main.c]
+ElemType=File
+PathName=main.c
+Next=Root.Source Files.rgb.c
+
+[Root.Source Files.rgb.c]
+ElemType=File
+PathName=rgb.c
+Next=Root.Source Files.service_timing.c
+
+[Root.Source Files.service_timing.c]
+ElemType=File
+PathName=service_timing.c
+Next=Root.Source Files.stm8_interrupt_vector.c
+
+[Root.Source Files.stm8_interrupt_vector.c]
+ElemType=File
+PathName=stm8_interrupt_vector.c
+
+[Root.Include Files]
+ElemType=Folder
+PathName=Include Files
+Child=Root.Include Files.iwdg.h
+Config.0=Root.Include Files.Config.0
+Config.1=Root.Include Files.Config.1
+
+[Root.Include Files.Config.0]
+Settings.0.0=Root.Include Files.Config.0.Settings.0
+Settings.0.1=Root.Include Files.Config.0.Settings.1
+Settings.0.2=Root.Include Files.Config.0.Settings.2
+Settings.0.3=Root.Include Files.Config.0.Settings.3
+
+[Root.Include Files.Config.1]
+Settings.1.0=Root.Include Files.Config.1.Settings.0
+Settings.1.1=Root.Include Files.Config.1.Settings.1
+Settings.1.2=Root.Include Files.Config.1.Settings.2
+Settings.1.3=Root.Include Files.Config.1.Settings.3
+
+[Root.Include Files.Config.0.Settings.0]
+String.6.0=2024,11,4,10,36,5
+String.8.0=Debug
+Int.0=0
+Int.1=0
+
+[Root.Include Files.Config.0.Settings.1]
+String.2.0=Compiling $(InputFile)...
+String.3.0=cxstm8 +mods0 -customDebCompat -customOpt-no -customC-pp -customLst -l -dSTM8S003 -istm8_headers\include -istm8s_stdperiph_driver\inc $(ToolsetIncOpts) -cl$(IntermPath) -co$(IntermPath) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,12,3,22,40,44
+
+[Root.Include Files.Config.0.Settings.2]
+String.2.0=Assembling $(InputFile)...
+String.3.0=castm8 -xx -l $(ToolsetIncOpts) -o$(IntermPath)$(InputName).$(ObjectExt) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,11,4,10,36,5
+
+[Root.Include Files.Config.0.Settings.3]
+String.2.0=Performing Custom Build on $(InputFile)
+String.3.0=
+String.4.0=
+String.5.0=
+String.6.0=2024,11,4,10,36,5
+
+[Root.Include Files.Config.1.Settings.0]
+String.6.0=2024,11,4,10,36,5
+String.8.0=Release
+Int.0=0
+Int.1=0
+
+[Root.Include Files.Config.1.Settings.1]
+String.2.0=Compiling $(InputFile)...
+String.3.0=cxstm8 +mods0 -customOpt -no +fast -customC-pp -customLst-l -dSTM8S003 -istm8_headers\include -istm8s_stdperiph_driver\inc $(ToolsetIncOpts) -cl$(IntermPath) -co$(IntermPath) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,11,22,16,36,5
+
+[Root.Include Files.Config.1.Settings.2]
+String.2.0=Assembling $(InputFile)...
+String.3.0=castm8 $(ToolsetIncOpts) -o$(IntermPath)$(InputName).$(ObjectExt) $(InputFile)
+String.4.0=$(IntermPath)$(InputName).$(ObjectExt)
+String.5.0=$(IntermPath)$(InputName).ls
+String.6.0=2024,11,4,10,36,5
+
+[Root.Include Files.Config.1.Settings.3]
+String.2.0=Performing Custom Build on $(InputFile)
+String.3.0=
+String.4.0=
+String.5.0=
+String.6.0=2024,11,4,10,36,5
+
+[Root.Include Files.iwdg.h]
+ElemType=File
+PathName=iwdg.h
+Next=Root.Include Files.keyboard.h
+
+[Root.Include Files.keyboard.h]
+ElemType=File
+PathName=keyboard.h
+Next=Root.Include Files.keyevents.h
+
+[Root.Include Files.keyevents.h]
+ElemType=File
+PathName=keyevents.h
+Next=Root.Include Files.eeprom.h
+
+[Root.Include Files.eeprom.h]
+ElemType=File
+PathName=eeprom.h
+Next=Root.Include Files.iface.h
+
+[Root.Include Files.iface.h]
+ElemType=File
+PathName=iface.h
+Next=Root.Include Files.display.h
+
+[Root.Include Files.display.h]
+ElemType=File
+PathName=display.h
+Next=Root.Include Files.ds3231.h
+
+[Root.Include Files.ds3231.h]
+ElemType=File
+PathName=ds3231.h
+Next=Root.Include Files.hc595.h
+
+[Root.Include Files.hc595.h]
+ElemType=File
+PathName=hc595.h
+Next=Root.Include Files.i2c.h
+
+[Root.Include Files.i2c.h]
+ElemType=File
+PathName=i2c.h
+Next=Root.Include Files.macro.h
+
+[Root.Include Files.macro.h]
+ElemType=File
+PathName=macro.h
+Next=Root.Include Files.rgb.h
+
+[Root.Include Files.rgb.h]
+ElemType=File
+PathName=rgb.h
+Next=Root.Include Files.service_timing.h
+
+[Root.Include Files.service_timing.h]
+ElemType=File
+PathName=service_timing.h
+Next=Root.Include Files.stm8_headers\include\stm8s003f3.h
+
+[Root.Include Files.stm8_headers\include\stm8s003f3.h]
+ElemType=File
+PathName=stm8_headers\include\stm8s003f3.h

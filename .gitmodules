@@ -1,0 +1,3 @@
+[submodule "STM8_headers"]
+	path = STM8_headers
+	url = https://github.com/gicking/STM8_headers
