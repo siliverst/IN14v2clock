@@ -77,7 +77,7 @@ ExternDep= service_timing.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8
 ExternDep= service_timing.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\mods0.h"  stm8_headers\include\STM8S003F3.h  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\stdint.h"  service_timing.h display.h ds3231.h keyboard.h keyevents.h macro.h iface.h
 
 [Root.Source Files.stm8_interrupt_vector.c.Config.0]
-ExternDep= stm8_interrupt_vector.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\mods0.h"
+ExternDep= stm8_interrupt_vector.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\mods0.h"  stm8_headers\include\STM8S003F3.h  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\stdint.h" display.h
 
 [Root.Source Files.stm8_interrupt_vector.c.Config.1]
 ExternDep= stm8_interrupt_vector.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\mods0.h"  stm8_headers\include\STM8S003F3.h  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\stdint.h" display.h

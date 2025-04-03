@@ -298,6 +298,7 @@ void displaySetBright(uint8_t bright)
 	if (bright == 0){
 		memset(disp_data,0,sizeof(disp_data));
 	}else{
+		if (bright > 100) {bright = 100;}
 		displayBright = scaleNixie[bright];
 		if (brightLast != displayBright){
 			brightLast = displayBright;
