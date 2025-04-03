@@ -6,6 +6,19 @@
 #include "eeprom.h"
 #include <string.h>
 
+const uint16_t scaleNixie[101] = {
+    0,100,200,300,400,500,600,700,800,900,
+  1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,
+  2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,
+  3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,
+  4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,
+  5000,5100,5200,5300,5400,5500,5600,5700,5800,5900,
+  6000,6100,6200,6300,6400,6500,6600,6700,6800,6900,
+  7000,7100,7200,7300,7400,7500,7600,7700,7800,7900,
+  8000,8100,8200,8300,8400,8500,8600,8700,8800,8900,
+  9000,9100,9200,9300,9400,9500,9600,9700,9800,9900,
+  10000 };
+	
 static volatile	uint8_t zero_data[8] 							= {0,0,0,0,0,0,0,0};
 static volatile uint8_t disp_data[8]							= {0,0,0,0,0,0,0,0};
 			 volatile uint8_t flag10ms;
@@ -280,15 +293,22 @@ static uint8_t *displayNixieBuffPrepare(uint8_t *inbuff, uint8_t dmask)
 */
 void displaySetBright(uint8_t bright)
 {
+	static uint16_t brightLast = 0;
+	
 	if (bright == 0){
 		memset(disp_data,0,sizeof(disp_data));
 	}else{
-		displayBright = scale(bright,100,10000);
-		if (displayBright < NIXIE_MIN_BRIGHT){
-			displayBright = NIXIE_MIN_BRIGHT;
+		displayBright = scaleNixie[bright];
+		if (brightLast != displayBright){
+			brightLast = displayBright;
+			if (brightLast < NIXIE_MIN_BRIGHT){
+				brightLast = NIXIE_MIN_BRIGHT;
+			}
+			sfr_TIM2.CCR1H.byte = hibyte(brightLast);		// set PWM channel 1 duty period
+			sfr_TIM2.CCR1L.byte = lobyte(brightLast);
+			
+			RGBgammaCalculate(displayBright);
 		}
-		sfr_TIM2.CCR1H.byte = hibyte(displayBright);		// set PWM channel 1 duty period
-		sfr_TIM2.CCR1L.byte = lobyte(displayBright);
 	}
 }
 
@@ -316,31 +336,31 @@ ISR_HANDLER (TIM2_CAP_ISR, _TIM2_CAPCOM_CC1IF_VECTOR_)
 	sfr_TIM2.SR1.CC1IF = 0;
 } // TIM2_CAP_ISR
 
-
+// state 0 or 1 (off or on)
 void displayRGBset (uint8_t state)
 {
 	if (state){
-		RGBsetR((uint16_t)scale(EEPROM_readByte(R_ADDR),255,displayBright));
-		RGBsetG((uint16_t)scale(EEPROM_readByte(G_ADDR),255,displayBright));
-		RGBsetB((uint16_t)scale(EEPROM_readByte(B_ADDR),255,displayBright));
+		RGBsetR(RGBgammaGet(EEPROM_readByte(R_ADDR)));
+		RGBsetG(RGBgammaGet(EEPROM_readByte(G_ADDR)));
+		RGBsetB(RGBgammaGet(EEPROM_readByte(B_ADDR)));
 	}else{
 		RGBsetR(0);
 		RGBsetG(0);
 		RGBsetB(0);
 	}
 }
-
+// value is from 0 to 255
 void displayRset(uint8_t value)
 {
-	RGBsetR((uint16_t)scale(value,255,displayBright));
+	RGBsetR(RGBgammaGet(value));
 }
 
 void displayGset(uint8_t value)
 {
-	RGBsetG((uint16_t)scale(value,255,displayBright));
+	RGBsetG(RGBgammaGet(value));
 }
 
 void displayBset(uint8_t value)
 {
-	RGBsetB((uint16_t)scale(value,255,displayBright));
+	RGBsetB(RGBgammaGet(value));
 }

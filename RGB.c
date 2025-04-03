@@ -3,6 +3,12 @@
 #include "macro.h"
 
 #define RGB_RELOAD_VALUE		10000
+#if defined(__CSMC__)
+	volatile @far uint16_t  RGBgamma[256];
+#else
+	volatile uint16_t RGBgamma[256];
+#endif
+	
 
 void RGBinit ( void )
 {
@@ -71,4 +77,19 @@ void RGBsetB ( uint16_t value )
 {
 	sfr_TIM1.CCR4H.byte = hibyte(value);
 	sfr_TIM1.CCR4L.byte = lobyte(value);
+}
+
+void RGBgammaCalculate(uint16_t outMax) {
+	uint16_t i;
+	uint32_t value;
+	
+	for (i = 0; i <= 255; i++) {
+		value = (uint32_t)i * i; 																					// i^2 sqrt in integer
+		RGBgamma[i] = (uint16_t)((value * (uint32_t)outMax + (uint32_t)32768) / (uint32_t)65025); // scale
+	}
+}
+
+uint16_t RGBgammaGet (uint8_t in)
+{
+	return RGBgamma[in];
 }

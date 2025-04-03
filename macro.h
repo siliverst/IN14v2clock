@@ -34,10 +34,10 @@ extern "C" {
 #define	hibyte(v1)		((uint8_t)((v1)>>8))
 #define	lobyte(v1)		((uint8_t)((v1)&0xff))
 
-/// scale a number from one range to another (like map() but with 0 offsets)
-#define scale(x,inMax,outMax)      (((int32_t)x*(int32_t)outMax)/inMax)
-/// re-map a number from one range to another
-#define map(x,inMin,inMax,outMin,outMax)    ((int32_t)(x-inMin)*(int32_t)(outMax-outMin)/(inMax-inMin)+outMin)
+// scale a number from one range to another (like map() but with 0 offsets)
+//#define scale(x,inMax,outMax)      (((int32_t)x*(int32_t)outMax)/inMax)
+// re-map a number from one range to another
+//#define map(x,inMin,inMax,outMin,outMax)    ((int32_t)(x-inMin)*(int32_t)(outMax-outMin)/(inMax-inMin)+outMin)
 
 #ifdef	__cplusplus
 }

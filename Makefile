@@ -6,8 +6,8 @@
 # Compiler and Flags
 CC               = sdcc
 LD               = sdcc
-OPTIMIZE         = --opt-code-speed
-#OPTIMIZE         = --opt-code-size
+#OPTIMIZE         = --opt-code-speed
+OPTIMIZE         = --opt-code-size
 CFLAGS           = -mstm8 --std-sdcc99 --std-c99 $(OPTIMIZE)
 LFLAGS           = -mstm8 -lstm8 --out-fmt-ihx
 

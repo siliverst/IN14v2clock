@@ -12,8 +12,6 @@
  KEY1 - PLUS BUTTON   - change effects
  KEY2 - MENU BUTTON 	- time setup
  KEY3 - MINUS BUTTON 	- on/off RBG backlight
- 
- todo if there is enough ROM - gamma compensation for RGB.
 */
 
 int main(void) {
@@ -32,7 +30,6 @@ int main(void) {
 	iwdg_service();
   ENABLE_INTERRUPTS(); 
 
-	
 	while (1) {
 		service_timing_10ms_proc();
 		iface_proc(); 

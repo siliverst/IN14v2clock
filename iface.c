@@ -29,7 +29,7 @@ void iface_init( void )
 	memset(ap.flagEn,0,sizeof(ap.flagEn));
 	apUpdateTime();	// two calls toupdate the digsNew array;
 	apUpdateTime();
-	displayRGBset(0);
+	//displayRGBset(0);
 }
 
 void iface_proc ( void ) 
