@@ -5,12 +5,14 @@
 extern "C" {
 #endif
 
-#define KEYS_COUNT				2
-// биты текущего состояния кнопок (bf)
-#define S1               	0
-#define S2               	1
-#define S1_M               _BV(S1)
-#define S2_M               _BV(S2)
+#define KEYS_COUNT				3
+// Bits of the current button state (bf)
+#define KEY1               	0
+#define KEY2               	1
+#define KEY3               	2
+#define KEY1_M               _BV(KEY1)
+#define KEY2_M               _BV(KEY2)
+#define KEY3_M               _BV(KEY3)
 
 
 typedef struct {

@@ -3,29 +3,32 @@
 #include "keyevents.h"
 #include "service_timing.h"
 #include "ds3231.h"
-#include "display.h"
 #include "macro.h"
 #include "eeprom.h"
 #include <string.h>
 
 Iface i;
+antipoisoning ap;
 
 static void timer50msProc(void);
-static void antipoisoningProc(void);
 static void iface_display(void);
 static void iface_disp2decDigit (uint8_t value, uint8_t *d0, uint8_t *d1);
 static void iface_disp3decDigit (uint16_t value, uint8_t *d0, uint8_t *d1, uint8_t *d2);
 static void iface_disp2bcdDigit (uint8_t value, uint8_t *d0, uint8_t *d1);
-static uint8_t antipoisoning_loop(uint8_t *oldd, uint8_t *newd);
-static uint8_t antipoisoning_dig(uint8_t dig);
+
+static void apCounterProc(void);
+static uint8_t apLoop(uint8_t dig);
+static void apProc (void);
+static void apUpdateTime (void);
+static uint8_t apInWork (void);
 
 void iface_init( void )
 {
 	i.display_state = SETUP_NO;
 	ds3231_read_time(&i.seconds,&i.minutes,&i.hours);
-	i.hoursOld = i.hours;
-	i.minutesOld = i.minutes;
-	memset(i.apFlagEn,0,sizeof(i.apFlagEn));
+	memset(ap.flagEn,0,sizeof(ap.flagEn));
+	apUpdateTime();	// two calls toupdate the digsNew array;
+	apUpdateTime();
 	displayRGBset(0);
 }
 
@@ -75,10 +78,7 @@ void iface_proc ( void )
 			
 			case 3:
 				//counter for antipoisoning
-				if (++i.counterAp100ms > 10-1){
-					i.counterAp100ms = 0;
-					antipoisoningProc();
-				}
+				apCounterProc();
 				break;
 			
 			case 4:
@@ -123,79 +123,104 @@ static void timer50msProc(void)
 	
 	if (i.display_state == SETUP_NO){
 		ds3231_read_time(&i.seconds,&i.minutes,&i.hours);
-		if (i.seconds != secondsLast){
-			secondsLast = i.seconds;
-			displayDotPulse();
-		}
 	}
 }
 
-static void antipoisoningProc(void)
+static void apCounterProc(void)
 {
-	uint8_t bm = 0;
-	uint8_t k;
-	
-	if (i.antipoisoningEn) {
-		for (k = 0; k < 4; k++) {
-			if (antipoisoning_dig(k)){bitset(bm,k);}
-			else {
-				i.display[k] = i.apNew[k];
-			}
-		}
-		displayNixie(&i.display[0],bm);
+	if (++ap.counter > 10-1){
+		ap.counter = 0;
+		apProc();
 	}
 }
 
-static uint8_t antipoisoning_loop(uint8_t *oldd, uint8_t *newd) {
-	--*oldd;
-	if (*oldd > 9) {*oldd = 9;}
-	return *oldd;
-}
-
-static uint8_t antipoisoning_dig(uint8_t dig)
+//0,9,8,7,6,5,4,3,2,1,0,9,8,7,6,5,4,3,2,1,0
+// border cases:
+// 5->0;543210    432198760
+// 3->0;3210      219876540
+// 2->0;210       198765430
+// if new lower than old -> counting to 9, and skip new, but last (9th) should be new.
+static uint8_t apLoop(uint8_t dig) 
 {
-	static uint8_t loops[4] = {0,0,0,0};
-	uint8_t d;
-	
-	if (i.apFlagEn[dig]) {
-		d = antipoisoning_loop(&i.apOld[dig], &i.apNew[dig]);
-		if (d == i.apNew[dig]) {
-			loops[dig] = 0;
-			i.apFlagEn[dig] = 0;
-			if (dig < 3){
-				if (!i.apFlagEn[dig+1]) {
-					memset(i.apFlagEn,0,sizeof(i.apFlagEn));	// it's for disablin antipoisoning cycle if 
-					i.antipoisoningEn = 0;										// loops not starting next digit for antipoisoning
-					return 0;																	// mabe better to use single counter for all digits.
-				};
-			}
-			if (dig == 3){
-				i.antipoisoningEn = 0;
-			}
+	if ((ap.digsNew[dig] >= ap.digsOld[dig])||(ap.digsNew[dig] == 0 && ap.digsOld[dig] == 9)){
+		if (--ap.digsCurrent[dig] > 9) {
+			ap.digsCurrent[dig] = 9;
+		}
+		if (ap.digsCurrent[dig] == ap.digsNew[dig]){
+			return 1;
+		}else{
 			return 0;
-		} else {
-			i.display[dig] = d;
-			if(++loops[dig] > 3){
-				if (dig < 3){
-					i.apFlagEn[dig+1] = 1;
-				}
-			}
+		}
+	}
+	else{
+		if (ap.digsCurrent[dig] == ap.digsOld[dig]) {ap.digsCounter[dig] = 8;}
+		if (ap.digsCounter[dig]--){
+			--ap.digsCurrent[dig];
+			if (ap.digsCurrent[dig] == ap.digsNew[dig]) {--ap.digsCurrent[dig];};
+			if (ap.digsCurrent[dig] > 9) {ap.digsCurrent[dig] = 9;}
+			return 0;
+		}else{
+			ap.digsCurrent[dig] = ap.digsNew[dig];
 			return 1;
 		}
 	}
-	return 0;
 }
 
-void iface_start_antipoisoning(void)
+void apStart (void)
 {
-	i.apFlagEn[0] = 1;
-	i.antipoisoningEn = 1; 
-	i.counterAp100ms = 0;
+	memset(ap.flagEn,1,sizeof(ap.flagEn));
+	ap.procCounter = AP_CYCLES;
+	ap.counter = 10-1;
+	apUpdateTime();
+}
+
+static uint8_t apInWork (void)
+{
+	if (ap.flagEn[0]||ap.flagEn[1]||ap.flagEn[2]||ap.flagEn[3]||ap.flagEn[4]||ap.flagEn[5]){
+		return 1;
+	}else{
+		return 0;
+	}
+}
+
+//once in 100ms
+static void apProc (void)
+{
+	uint8_t d;
+	uint8_t brighMaxBitMask = 0;
+
+	if (apInWork()){
+		for (d=0;d<ap.procCounter/AP_CYCLES;d++){
+			if (ap.flagEn[d] == 1){
+				if (apLoop(d)){
+					ap.flagEn[d] = 2;	//one more cycle
+				}
+				i.display[d] = ap.digsCurrent[d];
+				displayNixie(&i.display[0],bitset(brighMaxBitMask,d));
+			}else if (ap.flagEn[d] == 2){
+				ap.flagEn[d] = 0;
+			}
+		}
+		if (ap.procCounter < NIXIE_COUNT*AP_CYCLES){
+			++ap.procCounter;
+		}
+	}
+}
+
+static void apUpdateTime (void)
+{
+	memcpy(ap.digsOld, ap.digsNew, sizeof(ap.digsOld));
+	memcpy(ap.digsCurrent, ap.digsOld, sizeof(ap.digsCurrent));
+	iface_disp2bcdDigit(i.seconds,		&ap.digsNew[0],&ap.digsNew[1]);
+	iface_disp2bcdDigit(i.minutes,		&ap.digsNew[2],&ap.digsNew[3]);
+	iface_disp2bcdDigit(i.hours,			&ap.digsNew[4],&ap.digsNew[5]);
 }
 
 static void iface_display(void)
 {
-	static uint8_t secondsLast;
+	static uint8_t secondsLast = 0xff;
+	static uint8_t minutesLast = 0xff;
+	
 	uint16_t current_minutes;
 	uint16_t start_minutes;
 	uint16_t end_minutes;
@@ -205,39 +230,34 @@ static void iface_display(void)
 			current_minutes = time_to_minutes(bcd_to_decimal(i.hours), bcd_to_decimal(i.minutes));
 			start_minutes 	=	time_to_minutes(e.nBrightStartH, e.nBrightStartM);
 			end_minutes 		= time_to_minutes(e.nBrightEndH, e.nBrightEndM);
-	
-			if (i.minutesOld != i.minutes){
-				iface_disp2bcdDigit(i.minutesOld,&i.apOld[0],&i.apOld[1]);
-				iface_disp2bcdDigit(i.hoursOld,&i.apOld[2],&i.apOld[3]);
-				iface_disp2bcdDigit(i.minutes,&i.apNew[0],&i.apNew[1]);
-				iface_disp2bcdDigit(i.hours,&i.apNew[2],&i.apNew[3]);
-				i.minutesOld = i.minutes;
-				i.hoursOld = i.hours;
-				if (!i.antipoisoningEn) {
-					if (e.antipoisoningAtNihgtOnly){
-						if (is_time_in_interval(current_minutes, start_minutes, end_minutes)) {
-							if (i.minutes%2 == 0) {
-								iface_start_antipoisoning();
-							}
+			
+			if (minutesLast == 0xff) {
+				minutesLast = i.minutes;
+			}
+			else if (minutesLast != i.minutes){
+				minutesLast = i.minutes;
+				if (e.antipoisoningAtNihgtOnly){
+					if (is_time_in_interval(current_minutes, start_minutes, end_minutes)) {
+						if (i.minutes%2 == 0){
+							apStart();
 						}
-					} else {
-						if (i.minutes%6 == 0) {
-							iface_start_antipoisoning();
-						}
+					}
+				} else {
+					if (i.minutes%6 == 0){
+						apStart();
 					}
 				}
 			}
-			
-			if (!i.antipoisoningEn) {
-				iface_disp2bcdDigit(i.minutes, &i.display[0], &i.display[1]);
-				iface_disp2bcdDigit(i.hours, &i.display[2], &i.display[3]);
-				if (!e.zeroEn){
-					if ((i.hours&0xF0)==0){
-						i.display[3] = NIXIE_OFF;
-					}
-				}
+			if (!ap.flagEn[0]){
+				i.display[0] = i.seconds&0x0f;	//it's need for displaying seconds when ap on seconds is done.
+			}
+			if (!apInWork()) 
+			{
+				iface_disp2bcdDigit(i.seconds, 	&i.display[0], &i.display[1]);
+				iface_disp2bcdDigit(i.minutes, 	&i.display[2], &i.display[3]);
+				iface_disp2bcdDigit(i.hours, 		&i.display[4], &i.display[5]);
 				displayNixie(&i.display[0],0);
-			
+				
 				if (i.seconds != secondsLast){
 					secondsLast = i.seconds;
 					
@@ -268,87 +288,123 @@ static void iface_display(void)
 			break;
 		
 		case SETUP_HOURS:
-			iface_disp2bcdDigit(i.minutesSetupValue, &i.display[0], &i.display[1]);
-			iface_disp2bcdDigit(i.hoursSetupValue, &i.display[2], &i.display[3]);
+			iface_disp2bcdDigit(i.secondsSetupValue, 	&i.display[0], &i.display[1]);
+			iface_disp2bcdDigit(i.minutesSetupValue, 	&i.display[2], &i.display[3]);
+			iface_disp2bcdDigit(i.hoursSetupValue, 		&i.display[4], &i.display[5]);
+			if(i.flag05s){
+				i.display[4] = NIXIE_OFF;
+				i.display[5] = NIXIE_OFF;
+			}
+			displayNixie(&i.display[0],0);
+			break;
+		
+		case SETUP_MINUTES:
+			iface_disp2bcdDigit(i.secondsSetupValue, 	&i.display[0], &i.display[1]);
+			iface_disp2bcdDigit(i.minutesSetupValue, 	&i.display[2], &i.display[3]);
+			iface_disp2bcdDigit(i.hoursSetupValue, 		&i.display[4], &i.display[5]);
 			if(i.flag05s){
 				i.display[2] = NIXIE_OFF;
 				i.display[3] = NIXIE_OFF;
 			}
 			displayNixie(&i.display[0],0);
-			displayDot(1);
 			break;
-		
-		case SETUP_MINUTES:
-			iface_disp2bcdDigit(i.minutesSetupValue, &i.display[0], &i.display[1]);
-			iface_disp2bcdDigit(i.hoursSetupValue, &i.display[2], &i.display[3]);
+			
+		case SETUP_SECONDS:
+			iface_disp2bcdDigit(i.secondsSetupValue, 	&i.display[0], &i.display[1]);
+			iface_disp2bcdDigit(i.minutesSetupValue, 	&i.display[2], &i.display[3]);
+			iface_disp2bcdDigit(i.hoursSetupValue, 		&i.display[4], &i.display[5]);
 			if(i.flag05s){
 				i.display[0] = NIXIE_OFF;
 				i.display[1] = NIXIE_OFF;
 			}
 			displayNixie(&i.display[0],0);
-			displayDot(1);
 			break;
-		
+			
 		case SETUP_R:
 		case SETUP_G:
 		case SETUP_B:
 			iface_disp3decDigit (i.setupValue, &i.display[0], &i.display[1], &i.display[2]);
 			if (i.flag100ms){
-				i.display[3] = NIXIE_OFF;
+				i.display[5] = NIXIE_OFF;
 			}else{
-				i.display[3] = i.display_state-11;
+				i.display[5] = i.display_state-6;
 			}
+			i.display[3] = NIXIE_OFF;
+			i.display[4] = NIXIE_OFF;
 			displayNixie(&i.display[0],0);
-			displayDot(0);
 			break;
 		
 		case SETUP_BRIGHT:
 		case SETUP_NIGHT_BR:
-			i.display[3] = i.display_state;
+			i.display[5] = i.display_state;
+			i.display[4] = NIXIE_OFF;	
+			i.display[3] = NIXIE_OFF;	
 			iface_disp3decDigit (i.setupValue, &i.display[0], &i.display[1], &i.display[2]);
-			displayNixie(&i.display[0],bin(00001000));
-			displayDot(0);
+			displayNixie(&i.display[0],bin(00100000));
 		break;
 		
-		case SETUP_ZERO:
-		case SETUP_F1224:
 		case SETUP_NIGHT_BR_EN:
 		case SETUP_NIGHT_RGB_EN:
 		case SETUP_ANTIPOISONING_AT_NIGHT_ONLY:
-			if (i.display_state > 9){
+			if (i.display_state > 6){
 				iface_disp2decDigit(i.display_state,&i.display[2],&i.display[3]);
 			}else{
-				i.display[3] = i.display_state;
-				i.display[2] = NIXIE_OFF;	
+				i.display[5] = i.display_state;
+				i.display[4] = NIXIE_OFF;	
 			}
+			i.display[3] = NIXIE_OFF;	
+			i.display[2] = NIXIE_OFF;	
 			i.display[1] = NIXIE_OFF;
 			i.display[0] = i.setupValue;
 			displayNixie(&i.display[0],0);
-			displayDot(0);
-			break;
-		
-		case SETUP_COLON_BLINKING_TYPE:
-			if (i.display_state > 10){
-				iface_disp2decDigit(i.display_state,&i.display[2],&i.display[3]);
-			}else{
-				i.display[3] = i.display_state;
-				i.display[2] = NIXIE_OFF;	
-			}
-			i.display[1] = NIXIE_OFF;
-			i.display[0] = i.setupValue;
-			displayNixie(&i.display[0],0);
-			displayDot(0);
 			break;
 		
 		case SETUP_NIGHT_BR_START_H:
-		case SETUP_NIGHT_BR_START_M:
+			iface_disp2decDigit(i.setupValue, &i.display[2], &i.display[3]);
+			i.display[5] = SETUP_NIGHT_BR_START_H;
+			i.display[4] = NIXIE_OFF;
+			if(i.flag05s){
+				i.display[3] = NIXIE_OFF;
+				i.display[2] = NIXIE_OFF;
+			}
+			iface_disp2decDigit(e.nBrightStartM, &i.display[0], &i.display[1]);
+			displayNixie(&i.display[0],0);
+			break;
+			
+		case SETUP_NIGHT_BR_START_M:	
+			iface_disp2decDigit(i.setupValue, &i.display[0], &i.display[1]);
+			i.display[5] = SETUP_NIGHT_BR_START_H;
+			i.display[4] = NIXIE_OFF;
+			if(i.flag05s){
+				i.display[1] = NIXIE_OFF;
+				i.display[0] = NIXIE_OFF;
+			}
+			iface_disp2decDigit(e.nBrightStartH, &i.display[2], &i.display[3]);
+			displayNixie(&i.display[0],0);
+			break;
+			
 		case SETUP_NIGHT_BR_END_H:
+			iface_disp2decDigit(i.setupValue, &i.display[2], &i.display[3]);
+			i.display[5] = SETUP_NIGHT_BR_END_H;
+			i.display[4] = NIXIE_OFF;
+			if(i.flag05s){
+				i.display[3] = NIXIE_OFF;
+				i.display[2] = NIXIE_OFF;
+			}
+			iface_disp2decDigit(e.nBrightEndM, &i.display[0], &i.display[1]);
+			displayNixie(&i.display[0],0);
+			break;
+		
 		case SETUP_NIGHT_BR_END_M:
 			iface_disp2decDigit(i.setupValue, &i.display[0], &i.display[1]);
-			i.display[2] = NIXIE_OFF;
-			i.display[3] = i.display_state;
+			i.display[5] = SETUP_NIGHT_BR_END_H;
+			i.display[4] = NIXIE_OFF;
+			if(i.flag05s){
+				i.display[1] = NIXIE_OFF;
+				i.display[0] = NIXIE_OFF;
+			}
+			iface_disp2decDigit(e.nBrightEndH, &i.display[2], &i.display[3]);
 			displayNixie(&i.display[0],0);
-			displayDot(0);
 			break;
 		
 		default:
@@ -411,7 +467,7 @@ if time in in normal interval - control global rgb enable flag
 */
 void RGBtoggle ( void )
 {
-	uint16_t current_minutes;
+	uint16_t current_minutes; 
 	uint16_t start_minutes;
 	uint16_t end_minutes;
 	
@@ -438,3 +494,4 @@ void RGBtoggle ( void )
 		EEPROM_writeByte(RGB_EN_ADDR,e.rgbGlobalEn);
 	}
 }
+

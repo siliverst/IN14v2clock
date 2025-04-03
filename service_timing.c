@@ -36,9 +36,8 @@ void service_timing_10ms_proc (void)
 			quere10ms++;
 			
 			switch(quere10ms){
-				case 1:	displayDotPulseProc(); 	break;
-				case 2: iface_10ms_proc_en();		break;
-				case 3: timer20msProc(); 
+				case 1: iface_10ms_proc_en();		break;
+				case 2: timer20msProc(); 
 					flag10ms = 0;
 					quere10ms = 0;
 					break;

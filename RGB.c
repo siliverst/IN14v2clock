@@ -58,6 +58,7 @@ void RGBsetR ( uint16_t value )
 {
 	sfr_TIM1.CCR3H.byte = hibyte(value);
 	sfr_TIM1.CCR3L.byte = lobyte(value);
+	
 }
 
 void RGBsetG ( uint16_t value )

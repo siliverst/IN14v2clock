@@ -6,8 +6,6 @@ extern "C" {
 #endif
 
 enum eeprom_adreses{
-	ZERO_ADDR,
-	F1224_ADDR,
 	BRIGHT_ADDR,
 	NIGHT_BR_ADDR,
 	NIGHT_BR_EN_ADDR,
@@ -27,8 +25,6 @@ enum eeprom_adreses{
 
 
 typedef struct {
-	uint8_t		zeroEn;
-	uint8_t		f1224;
 	uint8_t		bright;
 	uint8_t		nBright;
 	uint8_t		nBrightEn;

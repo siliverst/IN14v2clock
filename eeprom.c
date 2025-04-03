@@ -11,19 +11,6 @@ void EEPROM_dataInit(void)
 		EEPROM_writeByte(RGB_EN_ADDR,e.rgbGlobalEn);
 	}
 	
-	e.zeroEn = EEPROM_readByte(ZERO_ADDR);
-	if (e.zeroEn > 1) {
-		e.zeroEn = 0;
-		EEPROM_writeByte(ZERO_ADDR,e.zeroEn);
-	}
-	
-	e.f1224 = EEPROM_readByte(F1224_ADDR);
-	if (e.f1224) {														//disable, 12h time display is not working yet!
-	//if (e.f1224 > 1) {
-		e.f1224 = 0;
-		EEPROM_writeByte(F1224_ADDR,e.f1224);
-	}
-	
 	e.bright = EEPROM_readByte(BRIGHT_ADDR);
 	if ((e.bright > 100)||(e.bright < 5)) {
 		e.bright = 100;
@@ -43,16 +30,10 @@ void EEPROM_dataInit(void)
 	}
 	
 	e.nBrightStartH = EEPROM_readByte(NIGHT_BR_START_H_ADDR);
-	if (e.f1224){
-		if (e.nBrightStartH > 12) {
-			e.nBrightStartH = 0;
-			EEPROM_writeByte(NIGHT_BR_START_H_ADDR,e.nBrightStartH);
-		}
-	}else{
-		if (e.nBrightStartH > 23) {
-			e.nBrightStartH = 0;
-			EEPROM_writeByte(NIGHT_BR_START_H_ADDR,e.nBrightStartH);
-		}
+	if (e.nBrightStartH > 23) {
+		e.nBrightStartH = 0;
+		EEPROM_writeByte(NIGHT_BR_START_H_ADDR,e.nBrightStartH);
+		
 	}
 	
 	e.nBrightStartM = EEPROM_readByte(NIGHT_BR_START_M_ADDR);
@@ -62,16 +43,9 @@ void EEPROM_dataInit(void)
 	}
 	
 	e.nBrightEndH = EEPROM_readByte(NIGHT_BR_STOP_H_ADDR);
-	if (e.f1224){
-		if (e.nBrightEndH > 12) {
-			e.nBrightEndH = 0;
-			EEPROM_writeByte(NIGHT_BR_STOP_H_ADDR,e.nBrightEndH);
-		}
-	}else{
-		if (e.nBrightEndH > 23) {
-			e.nBrightEndH = 0;
-			EEPROM_writeByte(NIGHT_BR_STOP_H_ADDR,e.nBrightEndH);
-		}
+	if (e.nBrightEndH > 23) {
+		e.nBrightEndH = 0;
+		EEPROM_writeByte(NIGHT_BR_STOP_H_ADDR,e.nBrightEndH);
 	}
 	
 	e.nBrightEndM = EEPROM_readByte(NIGHT_BR_STOP_M_ADDR);
@@ -96,12 +70,6 @@ void EEPROM_dataInit(void)
 	if (e.antipoisoningEffect!= 1) {
 		e.antipoisoningEffect = 1;	// todo temporally it's only 1
 		EEPROM_writeByte(ANTIPOISONING_EFFECT_ADDR, e.antipoisoningEffect);
-	}
-
-	e.colonBlinkingType = EEPROM_readByte(COLON_BLINKING_TYPE);
-	if (e.colonBlinkingType > 2){
-		e.colonBlinkingType = 0;
-		EEPROM_writeByte(COLON_BLINKING_TYPE,e.colonBlinkingType);
 	}
 }
 

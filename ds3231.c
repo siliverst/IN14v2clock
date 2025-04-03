@@ -5,7 +5,6 @@
 void ds3231Init(void)
 {
 	i2c_init();
-	// дописать инициализацию, особенно часов, чтобы был только 24 часа формат времени
 }
 
 void ds3231_read_time(uint8_t *seconds, uint8_t *minutes, uint8_t *hours)

@@ -9,11 +9,10 @@
 #include "iwdg.h"
 
 /* 
- UP BUTTON   - change effects
- DOWN BUTTON - on/off RBG backlight
+ KEY1 - PLUS BUTTON   - change effects
+ KEY2 - MENU BUTTON 	- time setup
+ KEY3 - MINUS BUTTON 	- on/off RBG backlight
  
- todo comments on english
- todo 12/24
  todo if there is enough ROM - gamma compensation for RGB.
 */
 
@@ -29,7 +28,7 @@ int main(void) {
 	keyboard_init();
 	iface_init();
 	service_timing_init();
-	iwdg_init(0xFF);	//1.02s period
+	iwdg_init(0xff);	//1.02s period
 	iwdg_service();
   ENABLE_INTERRUPTS(); 
 

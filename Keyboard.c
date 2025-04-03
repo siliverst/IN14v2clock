@@ -2,8 +2,9 @@
 #include "keyboard.h"
 #include "macro.h"
 
-#define S1_PIN				sfr_PORTD.IDR.IDR4
-#define S2_PIN				sfr_PORTD.IDR.IDR5
+#define KEY1_PIN				sfr_PORTA.IDR.IDR3
+#define KEY2_PIN				sfr_PORTA.IDR.IDR2
+#define KEY3_PIN				sfr_PORTA.IDR.IDR1
 
 Keyboard kbd;
 static void insert_button(uint8_t b);
@@ -11,19 +12,25 @@ static void insert_button(uint8_t b);
 
 void keyboard_init(void)
 {
-	// configure S1_PIN as ID input
-	sfr_PORTD.DDR.DDR4 = 0;     // input(=0) or output(=1)
-	sfr_PORTD.CR1.C14  = 1;     // input: 0=float, 1=pull-up; output: 0=open-drain, 1=push-pull
-	sfr_PORTD.CR2.C24  = 0;     // input: 0=no exint, 1=exint; output: 0=2MHz slope, 1=10MHz slope
-	sfr_PORTD.ODR.ODR4 = 1;
-	// configure S2_PIN as ID input
-	sfr_PORTD.DDR.DDR5 = 0;     // input(=0) or output(=1)
-	sfr_PORTD.CR1.C15  = 1;     // input: 0=float, 1=pull-up; output: 0=open-drain, 1=push-pull
-	sfr_PORTD.CR2.C25  = 0;     // input: 0=no exint, 1=exint; output: 0=2MHz slope, 1=10MHz slope
-	sfr_PORTD.ODR.ODR5 = 1;
+	// configure KEY1_PIN as IA input
+	sfr_PORTA.DDR.DDR3 = 0;     // input(=0) or output(=1)
+	sfr_PORTA.CR1.C13  = 1;     // input: 0=float, 1=pull-up; output: 0=open-drain, 1=push-pull
+	sfr_PORTA.CR2.C23  = 0;     // input: 0=no exint, 1=exint; output: 0=2MHz slope, 1=10MHz slope
+	sfr_PORTA.ODR.ODR3 = 1;
+	// configure KEY2_PIN as IA input
+	sfr_PORTA.DDR.DDR2 = 0;     // input(=0) or output(=1)
+	sfr_PORTA.CR1.C12  = 1;     // input: 0=float, 1=pull-up; output: 0=open-drain, 1=push-pull
+	sfr_PORTA.CR2.C22  = 0;     // input: 0=no exint, 1=exint; output: 0=2MHz slope, 1=10MHz slope
+	sfr_PORTA.ODR.ODR2 = 1;
+	// configure KEY3_PIN as IA input
+	sfr_PORTA.DDR.DDR1 = 0;     // input(=0) or output(=1)
+	sfr_PORTA.CR1.C11  = 1;     // input: 0=float, 1=pull-up; output: 0=open-drain, 1=push-pull
+	sfr_PORTA.CR2.C21  = 0;     // input: 0=no exint, 1=exint; output: 0=2MHz slope, 1=10MHz slope
+	sfr_PORTA.ODR.ODR1 = 1;
 	
-	kbd.S1_reg = 0xFE;
-	kbd.S2_reg = 0xFE;
+	kbd.KEY1_reg = 0xFE;
+	kbd.KEY2_reg = 0xFE;
+	kbd.KEY3_reg = 0xFE;
 	kbd.HeadPtr = 0;
 	kbd.TailPtr = 0;
 	kbd.Refresh = 0;
@@ -31,15 +38,20 @@ void keyboard_init(void)
 
 void keyboard_refresh( void )
 {
-	kbd.S1_reg <<= 1;
-	if(!S1_PIN) kbd.S1_reg |= 0x01;
-	if(kbd.S1_reg == 0x7F) {insert_button(S1_DOWN);}
-	if(kbd.S1_reg == 0x80) {insert_button(S1_UP);}
+	kbd.KEY1_reg <<= 1;
+	if(!KEY1_PIN) kbd.KEY1_reg |= 0x01;
+	if(kbd.KEY1_reg == 0x7F) {insert_button(KEY1_DOWN);}
+	if(kbd.KEY1_reg == 0x80) {insert_button(KEY1_UP);}
 	
-	kbd.S2_reg <<= 1;
-	if(!S2_PIN) kbd.S2_reg |= 0x01;
-	if(kbd.S2_reg == 0x7F) {insert_button(S2_DOWN);}
-	if(kbd.S2_reg == 0x80) {insert_button(S2_UP);}
+	kbd.KEY2_reg <<= 1;
+	if(!KEY2_PIN) kbd.KEY2_reg |= 0x01;
+	if(kbd.KEY2_reg == 0x7F) {insert_button(KEY2_DOWN);}
+	if(kbd.KEY2_reg == 0x80) {insert_button(KEY2_UP);}
+	
+	kbd.KEY3_reg <<= 1;
+	if(!KEY3_PIN) kbd.KEY3_reg |= 0x01;
+	if(kbd.KEY3_reg == 0x7F) {insert_button(KEY3_DOWN);}
+	if(kbd.KEY3_reg == 0x80) {insert_button(KEY3_UP);}
 }
 
 
