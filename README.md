@@ -32,36 +32,36 @@ Before flashing the firmware, set the option byte `AFR0` in the ST Visual Progra
 
 ## Pinout
 ### STM8S003F3P6 Microcontroller Pin Assignment
-| Pin  | Signal                          | Description                                                        |
-|------|---------------------------------|--------------------------------------------------------------------|
-| 1    | PD4 (HS) UART1_CK/TIM2_CH1/BEEP | Output: Drives colon neons (DS3 & DS4)    |
-| 2    | PD5 (HS) UART1_TX/AIN5          |Output: Drives colon neons (DS1 & DS2)   |
-| 3    | PD6 (HS) UART1_RX               | Reserved       |
-| 4    | NRST                            | Debug connector pin 3.                                             |
-| 5    | PA1 OSCIN                       | Input: Button UP (KEY3) with 10k pull-up resistor. Grounded when pressed.                                                       |
-| 6    | PA2 OSCOUT                      | Input: Button DOWN (KEY2) with 10k pull-up resistor. Grounded when pressed                                                      |
-| 7    | Vss                             | GND                                                           |
-| 8    | Vcap                            | Decoupling capacitor                                              |
-| 9    | Vdd                             | +3.3V supply                                                      |
-| 10   | PA3 (HS) SPI_NSS/TIM2_CH3       | Input: Button SET with 10k pull-up resistor. Grounded when pressed                                                          |
-| 11   | PB5 (T) I2C_SDA/TIM1_BKIN       | I2C SDA for DS3231 RTC with 10k pull-up resistor                 |
-| 12   | PB4 (T) I2C_SCL/ADC_ETR         | I2C SCL for DS3231 RTC with 10k pull-up resistor                  |
-| 13   | PC3 (HS) TIM1_CH3               | Drives LEDs (red) through 1k resistor                             |
-| 14   | PC4 (HS) TIM1_CH4               | Drives LEDs (blue) through 1k resistor.                           |
-| 15   | PC5 (HS) SPI_SCK/TIM2_CH1       | Drives 595-pin12 RCLK (latch) with 10k pull-up resistor    |
-| 16   | PC6 (HS) SPI_MOSI/TIM1_CH1      | Drives LEDs (green) through 1k resistor                           |
-| 17   | PC7 (HS) SPI_MISO/TIM1_CH2      | Drives 595-pin14 SER (shift register data input) with 10k pull-up resistor.                 |
-| 18   | PD1 (HS) SWIM                   | Debug connector pin 2.                                             |
-| 19   | PD2 (HS) AIN3/TIM2_CH3          | Drives 595-pin13 nOE (output enable U14 only)                       |
-| 20   | PD3 (HS) AIN4/TIM2_CH2          | Drives 595-pin11 SRCLK (clock) with 10k pull-up resistor                                                  |
+| Pin  | Signal                          | Description                                                                 |
+|------|---------------------------------|-----------------------------------------------------------------------------|
+| 1    | PD4 (HS) UART1_CK/TIM2_CH1/BEEP | Output: Drives colon neons (DS3 & DS4)                                      |
+| 2    | PD5 (HS) UART1_TX/AIN5          |Output: Drives colon neons (DS1 & DS2)                                       |
+| 3    | PD6 (HS) UART1_RX               | Reserved                                                                    |
+| 4    | NRST                            | Debug connector pin 3.                                                      |
+| 5    | PA1 OSCIN                       | Input: Button UP (KEY3) with 10k pull-up resistor. Grounded when pressed.   |
+| 6    | PA2 OSCOUT                      | Input: Button DOWN (KEY2) with 10k pull-up resistor. Grounded when pressed  |
+| 7    | Vss                             | GND                                                                         |
+| 8    | Vcap                            | Decoupling capacitor                                                        |
+| 9    | Vdd                             | +3.3V supply                                                                |
+| 10   | PA3 (HS) SPI_NSS/TIM2_CH3       | Input: Button SET with 10k pull-up resistor. Grounded when pressed          |
+| 11   | PB5 (T) I2C_SDA/TIM1_BKIN       | I2C SDA for DS3231 RTC with 10k pull-up resistor                            |
+| 12   | PB4 (T) I2C_SCL/ADC_ETR         | I2C SCL for DS3231 RTC with 10k pull-up resistor                            |
+| 13   | PC3 (HS) TIM1_CH3               | Drives LEDs (red) through 1k resistor                                       |
+| 14   | PC4 (HS) TIM1_CH4               | Drives LEDs (blue) through 1k resistor.                                     |
+| 15   | PC5 (HS) SPI_SCK/TIM2_CH1       | Drives 595-pin12 RCLK (latch) with 10k pull-up resistor                     |
+| 16   | PC6 (HS) SPI_MOSI/TIM1_CH1      | Drives LEDs (green) through 1k resistor                                     |
+| 17   | PC7 (HS) SPI_MISO/TIM1_CH2      | Drives 595-pin14 SER (shift register data input) with 10k pull-up resistor  |
+| 18   | PD1 (HS) SWIM                   | Debug connector pin 2.                                                      |
+| 19   | PD2 (HS) AIN3/TIM2_CH3          | Drives 595-pin13 nOE (output enable U14 only)                               |
+| 20   | PD3 (HS) AIN4/TIM2_CH2          | Drives 595-pin11 SRCLK (clock) with 10k pull-up resistor                    |
 
 ### Debug Connector
-| Pin | Signal | Description |
-|-----|--------|-------------|
-| 1   | 3.3V   | Power supply. |
+| Pin | Signal | Description            |
+|-----|--------|------------------------|
+| 1   | 3.3V   | Power supply.          |
 | 2   | SWIM   | Programming interface. |
-| 3   | NRST   | Reset.       |
-| 4   | GND    | Ground.      |
+| 3   | NRST   | Reset.                 |
+| 4   | GND    | Ground.                |
 
 ---
 
@@ -201,68 +201,68 @@ Q7 -> Not connected
 <summary>Show Full Instruction</summary>
 
 ## **Basic Control:**
-1. **Single press of “−”** — Toggles the RGB lamp backlight.  
+1. **Single press of KEY3** — Toggles the RGB lamp backlight.  
    - In night mode, toggles the backlight for night operation.
-2. **Single press of “M”** — Activates time setup mode.
-3. **Single press of “+”** — Executes the cathode poisoning prevention algorithm.
-4. **Hold “−” (> 2 seconds)** — Activates backlight color adjustment mode.
-5. **Hold “M” (> 2 seconds)** — Activates the settings menu.
+2. **Single press of KEY2** — Activates time setup mode.
+3. **Single press of KEY1** — Executes the cathode poisoning prevention algorithm.
+4. **Hold KEY3 (> 2 seconds)** — Activates backlight color adjustment mode.
+5. **Hold KEY2 (> 2 seconds)** — Activates the settings menu.
 
 ---
 
 ## **Time Setup Mode:**
-1. **Entering the mode:** Single press of “M”.
+1. **Entering the mode:** Single press of KEY2.
 2. **Hour adjustment:**
    - The hour digits start blinking.
-   - **“+”**: Increases the hour by 1.  
-     - Holding “+” (> 0.8 seconds): Continuously increases the hour value.
-   - **“−”**: Decreases the hour by 1.  
-     - Holding “−” (> 0.8 seconds): Continuously decreases the hour value.
-   - **“M”**: Switches to minute adjustment.
+   - **KEY1**: Increases the hour by 1.  
+     - Holding KEY1 (> 0.8 seconds): Continuously increases the hour value.
+   - **KEY3**: Decreases the hour by 1.  
+     - Holding KEY3 (> 0.8 seconds): Continuously decreases the hour value.
+   - **KEY2**: Switches to minute adjustment.
 3. **Minute adjustment:**
    - The minute digits start blinking.
-   - **“+”**: Increases the minute by 1.  
-     - Holding “+” (> 0.8 seconds): Continuously increases the minute value.
-   - **“−”**: Decreases the minute by 1.  
-     - Holding “−” (> 0.8 seconds): Continuously decreases the minute value.
-   - **“M”**: Switches to second adjustment.
+   - **KEY1**: Increases the minute by 1.  
+     - Holding KEY1 (> 0.8 seconds): Continuously increases the minute value.
+   - **KEY3**: Decreases the minute by 1.  
+     - Holding KEY3 (> 0.8 seconds): Continuously decreases the minute value.
+   - **KEY2**: Switches to second adjustment.
 4. **Second adjustment:**
    - The second digits start blinking.
-   - **“+”**: Increases the seconds by 1.  
-     - Holding “+” (> 0.8 seconds): Continuously increases the second value.
-   - **“−”**: Decreases the seconds by 1.  
-     - Holding “−” (> 0.8 seconds): Continuously decreases the second value.
-   - **“M”**: Saves the time and exits the setup mode.
-5. **Exiting the mode:** Hold “M” for more than 2 seconds.
+   - **KEY1**: Increases the seconds by 1.  
+     - Holding KEY1 (> 0.8 seconds): Continuously increases the second value.
+   - **KEY3**: Decreases the seconds by 1.  
+     - Holding KEY3 (> 0.8 seconds): Continuously decreases the second value.
+   - **KEY2**: Saves the time and exits the setup mode.
+5. **Exiting the mode:** Hold KEY2 for more than 2 seconds.
 
 ---
 
 ## **Backlight Color Adjustment Mode:**
-1. **Entering the mode:** Hold “−” for more than 2 seconds.
+1. **Entering the mode:** Hold KEY3 for more than 2 seconds.
 2. **Adjustment sequence:**
    - **Red (digit "1" blinks).**
    - **Green (digit "2" blinks).**
    - **Blue (digit "3" blinks).**
 3. **Brightness adjustment:**
-   - **“+”**: Increases brightness by 1 (range: 0–255).  
-     - Holding “+” (> 0.8 seconds): Continuously increases brightness.
-   - **“−”**: Decreases brightness by 1 (range: 0–255).  
-     - Holding “−” (> 0.8 seconds): Continuously decreases brightness.
-4. **“M”**: Saves the current value and proceeds to the next color.
+   - **KEY1**: Increases brightness by 1 (range: 0–255).  
+     - Holding KEY1 (> 0.8 seconds): Continuously increases brightness.
+   - **KEY3**: Decreases brightness by 1 (range: 0–255).  
+     - Holding KEY3 (> 0.8 seconds): Continuously decreases brightness.
+4. **KEY2**: Saves the current value and proceeds to the next color.
 5. **Exiting the mode:** After adjusting blue brightness, the mode exits automatically.
-6. **Manual exit:** Hold “M” for more than 2 seconds.
+6. **Manual exit:** Hold KEY2 for more than 2 seconds.
 
 ---
 
 ## **Settings Menu:**
-1. **Entering the menu:** Hold “M” for more than 2 seconds.
+1. **Entering the menu:** Hold KEY2 for more than 2 seconds.
 2. **Display behavior:**
    - **Tens of hours digit:** Displays the menu item number.
    - **Other digits:** Show the parameter value.
 3. **Control:**
-   - **“+”**: Increases the parameter value.
-   - **“−”**: Decreases the parameter value.
-   - **“M”**: Saves the parameter and moves to the next menu item.
+   - **KEY1**: Increases the parameter value.
+   - **KEY3**: Decreases the parameter value.
+   - **KEY2**: Saves the parameter and moves to the next menu item.
 4. ## Menu Items:
 
     **0.** **Normal mode indicator brightness:**  
@@ -287,7 +287,7 @@ Q7 -> Not connected
          `0` — Every 6 minutes during normal operation  
          `1` — Every 2 minutes (only at night)
 
-5. **Exiting the menu:** After the last menu item, or by holding “M” for more than 2 seconds, the clock returns to normal time display mode.
+5. **Exiting the menu:** After the last menu item, or by holding KEY2 for more than 2 seconds, the clock returns to normal time display mode.
 
 </details>
 
