@@ -188,7 +188,7 @@ static void apProc (void)
 {
 	uint8_t d;
 	uint8_t brighMaxBitMask = 0;
-
+//todo move ap.procCounter/AP_CYCLES to the local variable
 	if (apInWork()){
 		for (d=0;d<ap.procCounter/AP_CYCLES;d++){
 			if (ap.flagEn[d] == 1){
