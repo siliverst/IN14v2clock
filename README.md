@@ -172,6 +172,12 @@ Q7 -> Not connected
    ```
 
  **When using COSMIC:**
+ 
+ - For the correct operation of the project, the following settings are required when compiling the Release target on Cosmic:
+     - Project Settings -> C Compiler -> Category: Optimization -> check the Disable for Debugging (-no) and the Speed Optimization;
+     - Project Settings -> Linker -> Category: Input -> Change Segment Ram to 0x0ff-0x37f, and add the section .fbss to the Ram segment.
+     - or you can use my Cosmic project.
+ 
  - Compile the firmware using Cosmic STM8 v4.6 toolchain. 
  - Or use precompiled firmware file: `Release\in14v2clock.s19` 
 

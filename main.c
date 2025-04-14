@@ -9,6 +9,13 @@
 #include "iwdg.h"
 
 /* 
+ todo independed RGB bright for day and night mode.
+ todo bright in night mode can be set to 0 and wake up by any key for a wile.
+ todo if bright in night mode setted to 0 then RGB bright must set to 0 automatically?
+ todo refactor project
+ todo move ap.procCounter/AP_CYCLES to the local variable in apProc();
+ todo simplify the RGB toggle process.
+ 
  KEY1 - PLUS BUTTON   - change effects
  KEY2 - MENU BUTTON 	- time setup
  KEY3 - MINUS BUTTON 	- on/off RBG backlight
