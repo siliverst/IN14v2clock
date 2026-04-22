@@ -226,10 +226,13 @@ static void iface_display(void)
 	uint16_t start_minutes;
 	uint16_t end_minutes;
 	
+	i.display[4] = NIXIE_OFF;
+	i.display[3] = NIXIE_OFF;
+	i.display[2] = NIXIE_OFF;
+	i.display[1] = NIXIE_OFF;
+	i.display[0] = NIXIE_OFF;
+	
 	if (++delay >= 3) {
-		
-		i.display[5] = NIXIE_OFF;
-		
 		if (++i.display[5] == NIXIE_OFF) {
 			i.display[5] = 0;
 		}
@@ -238,11 +241,7 @@ static void iface_display(void)
 		delay = 0;
 	}
 	
-	i.display[4] = NIXIE_OFF;
-	i.display[3] = NIXIE_OFF;
-	i.display[2] = NIXIE_OFF;
-	i.display[1] = NIXIE_OFF;
-	i.display[0] = NIXIE_OFF;
+
 	
 	return;
 	
