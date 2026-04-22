@@ -7,6 +7,9 @@ Number=1.3
 [Root.Source Files.iwdg.c.Config.0]
 ExternDep= iwdg.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\mods0.h" iwdg.h  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\stdint.h"  stm8_headers\include\STM8S003F3.h
 
+[Root.Source Files.iwdg.c.Config.1]
+ExternDep= iwdg.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\mods0.h" iwdg.h  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\stdint.h"  stm8_headers\include\STM8S003F3.h
+
 [Root.Source Files.keyboard.c.Config.0]
 ExternDep= keyboard.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\mods0.h"  stm8_headers\include\STM8S003F3.h  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\stdint.h"  keyboard.h macro.h
 
@@ -24,6 +27,9 @@ ExternDep= eeprom.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\m
 
 [Root.Source Files.eeprom.c.Config.1]
 ExternDep= eeprom.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\mods0.h"  stm8_headers\include\STM8S003F3.h  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\stdint.h" eeprom.h
+
+[Root.Source Files.iface.c.Config.0]
+ExternDep= iface.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\HSTM8\mods0.h"  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\HSTM8\stdint.h" iface.h  display.h stm8_headers\include\STM8S003F3.h keyevents.h service_timing.h  ds3231.h macro.h eeprom.h  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\HSTM8\string.h"
 
 [Root.Source Files.iface.c.Config.1]
 ExternDep= iface.c  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\mods0.h"  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\stdint.h" iface.h  display.h stm8_headers\include\STM8S003F3.h keyevents.h service_timing.h  ds3231.h macro.h eeprom.h  "C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8\string.h"

@@ -220,10 +220,31 @@ static void iface_display(void)
 {
 	static uint8_t secondsLast = 0xff;
 	static uint8_t minutesLast = 0xff;
+	static uint8_t delay = 0;
 	
 	uint16_t current_minutes;
 	uint16_t start_minutes;
 	uint16_t end_minutes;
+	
+	if (++delay >= 3) {
+		
+		i.display[5] = NIXIE_OFF;
+		
+		if (++i.display[5] == NIXIE_OFF) {
+			i.display[5] = 0;
+		}
+		displayNixie(&i.display[0],0);
+		
+		delay = 0;
+	}
+	
+	i.display[4] = NIXIE_OFF;
+	i.display[3] = NIXIE_OFF;
+	i.display[2] = NIXIE_OFF;
+	i.display[1] = NIXIE_OFF;
+	i.display[0] = NIXIE_OFF;
+	
+	return;
 	
 	switch(i.display_state){
 		case SETUP_NO:

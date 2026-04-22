@@ -53,7 +53,8 @@ void displayInit ( void )
 	displaySetBright(100);
 	hc595ChainShiftOut(zero_data,sizeof(zero_data));
 	RGBinit();
-	displayRGBset(e.rgbGlobalEn);
+	//displayRGBset(e.rgbGlobalEn);
+	displayRGBset(0);
 }
 
 //inbuff -> {seconds, tens of seconds, minutes, tens of minutes, hours, tens of hours}
