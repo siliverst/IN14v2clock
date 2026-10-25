@@ -124,6 +124,10 @@ static void apProc(void)
 	uint8_t d, v, run = 0;
 	uint8_t noise = (e.apType == 2);
 
+	// the finished digits show the time: the seconds go on while the other tubes roll (the wave is 2s long)
+	for (d = 0; d < NIXIE_COUNT; d++){
+		if (!apSteps[d]) {shown[d] = target[d];}
+	}
 	if (!noise && (++fxTick < AP_STEP_TICKS)) {return;}
 	fxTick = 0;
 	fxFull = 0;
