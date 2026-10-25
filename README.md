@@ -58,7 +58,7 @@ External libraries: the submodule [STM8_headers](https://github.com/gicking/STM8
    |------|--------------|
    | `Build` | build, asks for the compiler (the same as `Ctrl+Shift+B`) |
    | `Build Cosmic`, `Build SDCC` | build with one compiler, no question |
-   | `Flash` | flash through ST-LINK, asks: Cosmic or SDCC firmware, with or without the default EEPROM (the settings reset). Option bytes are not touched |
+   | `Flash` | flash through ST-LINK, asks: Cosmic or SDCC firmware or the precompiled one (`Release/`, no build needed), with or without the default EEPROM (the settings reset). Option bytes are not touched |
    | `Build and flash Cosmic` | build and flash at once — the usual one |
    | `Special build Cosmic` | test builds: `AP_TEST` (the time runs 6 times faster, antipoisoning every minute), `DIAG_RESET` (the reset cause at start) |
    | `Default EEPROM file` | regenerate the default EEPROM file after a change of the settings layout |
@@ -242,7 +242,7 @@ Q7 -> Not connected
  - Build options: `-DDIAG_RESET` (shows the reset cause at start: `8 _ _ _ x x`), `-DAP_TEST` (test: the time runs 6 times
    faster, antipoisoning every minute).
  - `python tools/eedata.py` regenerates the default EEPROM file from the sources (after a change of the settings layout).
- - `python tools/flash.py [sdcc] [data]` flashes `build/cosmic/in14v2clock.s19` through ST-LINK (SWIM) with `STVP_CmdLine`, option bytes are not touched; `data` also writes the default EEPROM file.
+ - `python tools/flash.py [release] [sdcc] [data]` flashes `build/cosmic/in14v2clock.s19` through ST-LINK (SWIM) with `STVP_CmdLine`, option bytes are not touched; `data` also writes the default EEPROM file; `release` flashes the precompiled `Release/in14v2clock.s19` (no compiler needed).
 2. Flash the firmware, see [Flashing](#flashing).
 3. Verify the board's functionality.
 
@@ -282,7 +282,7 @@ Install [STVP](https://www.st.com/en/development-tools/stvp-stm8.html) (it also 
 `Program > All tabs` writes all three at once (the settings are reset).
 
 ### Windows: command line or VS Code
-`python tools/flash.py [sdcc] [data]` or the VS Code task `Flash` (see [Working in VS Code](#working-in-vs-code)).
+`python tools/flash.py [release] [sdcc] [data]` or the VS Code task `Flash` (see [Working in VS Code](#working-in-vs-code)).
 It uses `STVP_CmdLine.exe` from STVP, writes the program memory (and the default EEPROM with `data`), verifies it,
 never touches the option bytes. Set `AFR0` once with the STVP GUI.
 
