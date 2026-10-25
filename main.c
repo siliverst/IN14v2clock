@@ -8,58 +8,60 @@
 #include "eeprom.h"
 #include "iwdg.h"
 
-/* 
- todo independed RGB bright for day and night mode.
- todo bright in night mode can be set to 0 and wake up by any key for a wile.
- todo if bright in night mode setted to 0 then RGB bright must set to 0 automatically?
- todo refactor project
- todo move ap.procCounter/AP_CYCLES to the local variable in apProc();
- todo simplify the RGB toggle process.
- 
- KEY1 - PLUS BUTTON   - change effects
- KEY2 - MENU BUTTON 	- time setup
- KEY3 - MINUS BUTTON 	- on/off RBG backlight
- 
- For the correct operation of the project, the following settings are required when compiling the Release target on Cosmic:
-
- 1. Project Settings -> C Compiler -> Category: Optimization -> check the Disable for Debugging (-no) and the Speed Optimization;
- 2. Project Settings -> Linker -> Category: Input -> Change Segment Ram to 0x0ff-0x37f, and add the section .fbss to the Ram segment.
- 
- or you can use my Cosmic project.
- 
- on Cosmic .hex file is a little smaller than on SDCC
+/*
+Alternative firmware for the GeekStyles IN14 V2 nixie clock, 6 x IN-14 (STM8S003F3, 8KB flash).
+Modules:
+  display.c         - digits PWM by reloading the 74HC595 chain from the TIM2 ISRs
+  hc595.c           - shift out to the 595 chain (assembler, the shortest digit pulse depends on it)
+  effects.c         - digits in the time display: smooth change, antipoisoning, glitches
+  iface.c           - time display, day/night mode, smooth brightness, setup modes and the settings menu
+  keyevents.c       - key actions, keyboard.c - key scanning and debounce
+  RGB.c             - backlight PWM (TIM1) with the CIE lightness table
+  ds3231.c, i2c.c   - RTC on the software I2C
+  eeprom.c          - settings, their limits and defaults
+  service_timing.c  - 10/20/50/100ms tasks of the main loop, TIM2 gives the 10ms tick
+See README.md.
 */
-
-//#define STACK_START 0x03FF
-//#define STACK_SIZE  512
-//#define STACK_SENTINEL 0xAA
-
-//void initStackSentinel(void) {
-//    uint8_t* ptr = (uint8_t*)(STACK_START - STACK_SIZE);
-//    while (ptr < (uint8_t*)STACK_START) {
-//        *ptr++ = STACK_SENTINEL;
-//    }
-//}
 
 int main(void) {
 	
   DISABLE_INTERRUPTS();
 	// switch to 16MHz (default is 2MHz)
   sfr_CLK.CKDIVR.byte = 0x00;
-	//initStackSentinel();
+	
 	EEPROM_dataInit();
 	displayInit();
 	ds3231Init();
 	keyboard_init();
 	iface_init();
-	service_timing_init();
-	iwdg_init(0xff);	//1.02s period
+	iwdg_init(0xFF);	//1.02s period
 	iwdg_service();
   ENABLE_INTERRUPTS(); 
 
+#ifdef DIAG_RESET
+	// diagnostics: show the reset cause for 2.5s at start: "8 _ _ _ x x", RST_SR:
+	// 0 - power on/brown-out, 1 - WWDG, 2 - IWDG, 4 - illegal opcode, 8 - SWIM, 16 - EMC
+	{
+		uint8_t d[NIXIE_COUNT], n = 0;
+		
+		d[0] = sfr_ITC.RST_SR.byte;
+		sfr_ITC.RST_SR.byte = 0x1F;		// the flags are cleared by writing 1
+		d[1] = d[0] / 10;
+		d[0] = d[0] % 10;
+		d[2] = d[3] = d[4] = NIXIE_OFF;
+		d[5] = 8;
+		displaySetBright(100);
+		displayNixie(d, 0);
+		while (n < 250){
+			if (flag10ms) {flag10ms = 0; n++;}
+			iwdg_service();
+		}
+	}
+#endif
+
+	
 	while (1) {
-		service_timing_10ms_proc();
-		iface_proc(); 
+		service_timing_proc();
 		iwdg_service();
 	}
 }

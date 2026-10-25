@@ -6,25 +6,24 @@ extern "C" {
 #endif
 
 #define KEYS_COUNT				3
-// Bits of the current button state (bf)
-#define KEY1               	0
-#define KEY2               	1
-#define KEY3               	2
-#define KEY1_M               _BV(KEY1)
-#define KEY2_M               _BV(KEY2)
-#define KEY3_M               _BV(KEY3)
+// bits of the pressed keys (bf)
+#define S1               	0					// "+"
+#define S2               	1					// "M"
+#define S3               	2					// "-"
+#define S1_M               _BV(S1)
+#define S2_M               _BV(S2)
+#define S3_M               _BV(S3)
 
 
 typedef struct {
-	uint8_t	keys_mirror;
-	uint8_t	bf;												//buttons flags
-	uint8_t lp_counter[KEYS_COUNT];
-	uint8_t kr_counter[KEYS_COUNT];		//key repeat counters
-}Keyivents;
+	uint8_t	keys_mirror;							// the last key event from the keyboard buffer
+	uint8_t	bf;												// pressed keys, a key is cleared here when its release must be ignored
+	uint8_t lp_counter[KEYS_COUNT];		// 100ms ticks of the key press (long press)
+	uint8_t kr_counter[KEYS_COUNT];		// 100ms ticks of the key repeat
+}Keyevents;
 
 
 
-void keyevents_init ( void );
 void keyevents_proc ( void );
 void keyevents_counters ( void );
 
