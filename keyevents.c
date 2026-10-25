@@ -6,105 +6,58 @@
 #include "iface.h"
 #include "ds3231.h"
 #include "eeprom.h"
+#include "rgb.h"
+#include "effects.h"
 
 /*
-longpress_keyX		-	in keyivents_counters
-fastrelease_keyX 	-	in processing of button release
-ivent_single_keyX - this is what the button does in longpress or fastrelease
+Key events (keyboard.c gives the debounced press and release events). Keys: S1 "+", S2 "M", S3 "-".
+Time display:   "+" click - antipoisoning effect, hold 2s - time setup;
+                "M" click - smooth change on/off, hold 2s - settings menu;
+                "-" click - backlight on/off, hold 2s - backlight color setup.
+Setup modes:    "+" / "-" - change the value (by the press, key repeat by the hold);
+                "M" - time and color setup: next step by the press, after the last one save and exit;
+                      menu: click (release) - save and next item, hold 1s - save and exit.
+keyPress()  - the press of a single key, keyClick() - the release of a short press (< 1s),
+keyHold()   - the hold actions and the key repeat, every 100ms.
+A key bit is cleared in ki.bf to ignore its release after a hold action.
 */
 
-void event_single_key1(void);
-void event_single_key2(void);
-void event_single_key3(void);
-void longpress_key1(void);
-void longpress_key2(void);
-void longpress_key3(void);
-void fastReleaseKey1(void);
-void fastReleaseKey2(void);
-void fastReleaseKey3(void);
+static void keyPress(uint8_t k);
+static void keyClick(uint8_t k);
+static void keyHold(uint8_t k);
+static void fxSelect(uint8_t kind, uint8_t addr, uint8_t max);
 
-Keyivents ki;
-extern Iface i;
 
-void keyevents_init ( void )
-{
-
-}
+Keyevents ki;
 
 void keyevents_proc ( void )
 {
-	ki.keys_mirror = keyboard_get_key();
+	uint8_t k, m;
 
-	if(ki.keys_mirror != 0xFF){
-		//---------------------------------------------------------------------------------------------------------------
-		// Button 1 is pressed ( PLUS )
-		//---------------------------------------------------------------------------------------------------------------
-		if (ki.keys_mirror == KEY1_DOWN)
-		{
-			bitmaskset(ki.bf,KEY1_M);
-			if (ki.bf == KEY1_M){
-				event_single_key1();
-			}
+	ki.keys_mirror = keyboard_get_key();
+	if (ki.keys_mirror == 0xFF) {return;}
+
+	k = (ki.keys_mirror & 0x7F) - 1;				// S1_DOWN -> S1 ...
+	m = (uint8_t)(1 << k);
+	if (ki.keys_mirror & 0x80){
+		// release
+		if (ki.bf & m){
+			if ((ki.bf == m) && (ki.lp_counter[k] < 1*10)) {keyClick(k);}
+			ki.bf &= (uint8_t)~m;
 		}
-		//---------------------------------------------------------------------------------------------------------------
-		// Button 2 is pressed ( MENU )
-		//---------------------------------------------------------------------------------------------------------------
-		if (ki.keys_mirror == KEY2_DOWN)
-		{
-			bitmaskset(ki.bf,KEY2_M);
-			if (ki.bf == KEY2_M){
-				event_single_key2();
-			}
-		}
-		//---------------------------------------------------------------------------------------------------------------
-		// Button 3 is pressed ( MINUS )
-		//---------------------------------------------------------------------------------------------------------------
-		if (ki.keys_mirror == KEY3_DOWN)
-		{
-			bitmaskset(ki.bf,KEY3_M);
-			if (ki.bf == KEY3_M){
-				event_single_key3();
-			}
-		}
-		//---------------------------------------------------------------------------------------------------------------
-		// Button 1 is released ( PLUS )
-		//---------------------------------------------------------------------------------------------------------------
-		if (ki.keys_mirror == KEY1_UP)
-		{
-			if (bitchk(ki.bf,KEY1)){
-				fastReleaseKey1();
-				bitmaskclr(ki.bf,KEY1_M);
-			}
-		}
-		//---------------------------------------------------------------------------------------------------------------
-		// Button 2 is released ( MENU )
-		//---------------------------------------------------------------------------------------------------------------
-		if (ki.keys_mirror == KEY2_UP)
-		{
-			if (bitchk(ki.bf,KEY2)){
-				fastReleaseKey2();
-				bitmaskclr(ki.bf,KEY2_M);
-			}
-		}
-		//---------------------------------------------------------------------------------------------------------------
-		// Button 3 is released ( MINUS )
-		//---------------------------------------------------------------------------------------------------------------
-		if (ki.keys_mirror == KEY3_UP)
-		{
-			if (bitchk(ki.bf,KEY3)){
-				fastReleaseKey3();
-				bitmaskclr(ki.bf,KEY3_M);
-			}
-		}
+	}else{
+		// press
+		ki.bf |= m;
+		if (ki.bf == m) {keyPress(k);}
 	}
 }
 
 void keyevents_counters ( void )
 {
 	uint8_t t;
-	
+
 	//The counters count the time the button is pressed, tick 1/10s.
-	for(t=0; t<sizeof(ki.lp_counter); t++){
+	for(t=0; t<KEYS_COUNT; t++){
 		if (bitchk(ki.bf,t)){
 			if (ki.lp_counter[t]<255) ki.lp_counter[t]++;
 			if (ki.kr_counter[t]<255) ki.kr_counter[t]++;
@@ -116,391 +69,180 @@ void keyevents_counters ( void )
 	if (i.timeSetupCounter){
 		i.timeSetupCounter--;
 		if (!i.timeSetupCounter){
-			i.display_state = SETUP_NO;
+			iface_exit_setup();
 		}
 	}
-	
-	longpress_key1();
-	longpress_key2();
-	longpress_key3();
+
+	// the hold actions only when one key is pressed
+	for(t=0; t<KEYS_COUNT; t++){
+		if (ki.bf == (uint8_t)(1 << t)) {keyHold(t);}
+	}
 }
 
-void event_single_key1(void)
+/*
+"+" / "M" in the time display: the first click shows the number of the current effect, the clicks during it select the next one
+*/
+static void fxSelect(uint8_t kind, uint8_t addr, uint8_t max)
 {
-	switch(i.display_state){
-		case SETUP_NO:
-			apStart();
-			break;
+	if (fxHolding(kind)){
+		EEPROM_set(addr, (EE(addr) < max) ? EE(addr) + 1 : 0);
+	}
+	fxDemo(kind);
+}
+
+// 0..max in a circle
+static uint8_t wrapStep(uint8_t v, uint8_t up, uint8_t max)
+{
+	if (up) {return (v >= max) ? 0 : v + 1;}
+	return v ? v - 1 : max;
+}
+
+static uint8_t bcdStep(uint8_t v, uint8_t up, uint8_t max)
+{
+	v = wrapStep(bcd_to_decimal(v), up, max);
+	return (uint8_t)((v / 10) << 4) | (v % 10);
+}
+
+// "+" (up = 1) or "-" (up = 0) in the setup modes
+static void valueStep(uint8_t up)
+{
+	uint8_t s = i.display_state;
+	uint8_t v;
+
+	switch(s){
 		case SETUP_HOURS:
-			iface_flag05sReset();
-			++i.hoursSetupValue;
-			if ((i.hoursSetupValue&0x0F) > 0x09){i.hoursSetupValue +=0x06;}
-			if (i.hoursSetupValue > 0x23) 			{i.hoursSetupValue = 0;}
+			i.hoursSetupValue = bcdStep(i.hoursSetupValue, up, 23);
 			break;
-		
+
 		case SETUP_MINUTES:
-			iface_flag05sReset();
-			++i.minutesSetupValue;
-			if ((i.minutesSetupValue&0x0F) > 0x09){i.minutesSetupValue +=0x06;}
-			if (i.minutesSetupValue > 0x59) 			{i.minutesSetupValue = 0;}
+			i.minutesSetupValue = bcdStep(i.minutesSetupValue, up, 59);
 			break;
-			
+
 		case SETUP_SECONDS:
-			iface_flag05sReset();
-			++i.secondsSetupValue;
-			if ((i.secondsSetupValue&0x0F) > 0x09){i.secondsSetupValue +=0x06;}
-			if (i.secondsSetupValue > 0x59) 			{i.secondsSetupValue = 0;}
+			i.secondsSetupValue = bcdStep(i.secondsSetupValue, up, 59);
 			break;
-			
+
 		case SETUP_R:
-			++i.setupValue;
-			displayRset(i.setupValue);
-			break;
-		
 		case SETUP_G:
-			++i.setupValue;
-			displayGset(i.setupValue);
-			break;
-		
 		case SETUP_B:
-			++i.setupValue;
-			displayBset(i.setupValue);
+			// the color is changed in e only, it is saved by "M" or reloaded from EEPROM by timeout
+			EE(R_ADDR + s - SETUP_R) += up ? 1 : 255;
+			RGBset(100);
 			break;
-						
-		case  SETUP_NIGHT_BR_EN:
-		case	SETUP_NIGHT_RGB_EN:
-		case  SETUP_ANTIPOISONING_AT_NIGHT_ONLY:
-			if (i.setupValue){
-				i.setupValue = 0;
-			}else{
-				i.setupValue = 1;
-			}
-			break;
-		
+
 		case SETUP_BRIGHT:
 		case SETUP_NIGHT_BR:
-			if(++i.setupValue > 100) {
-				i.setupValue = 100;
+		case SETUP_RGB_BR:
+		case SETUP_RGB_NIGHT_BR:
+			// no circle: digits 5..100 day, 0, 5..100 night, backlight 0..100
+			v = EE(s);
+			if (up) {if (v < BRIGHT_MAX) v++;}
+			else {if (v) v--;}
+			if ((s <= SETUP_NIGHT_BR) && (v < BRIGHT_MIN)){
+				v = ((s == SETUP_NIGHT_BR) && !up) ? 0 : BRIGHT_MIN;
 			}
-			displaySetBright(i.setupValue);
+			EE(s) = v;
+			iface_menu_preview();
 			break;
-		
-		case SETUP_NIGHT_BR_START_H:
-		case SETUP_NIGHT_BR_END_H:
-			iface_flag05sReset();
-			if (++i.setupValue > 23)				{i.setupValue=0;}
-			break;
-		
-		case SETUP_NIGHT_BR_START_M:
-		case SETUP_NIGHT_BR_END_M:
-			iface_flag05sReset();
-			if (++i.setupValue > 59) 				{i.setupValue = 0;}
-			break;
-		
+
 		default:
+			// other settings menu items: 0..max in a circle
+			if (s <= SETUP_MENU_LAST){
+				EE(s) = wrapStep(EE(s), up, eeMax[s]);
+			}
 			break;
 	}
-	if (i.display_state!=SETUP_NO){
-		i.timeSetupCounter = 60*10;
+	iface_flag05sReset();								// the edited part is visible while changing
+	i.timeSetupCounter = 60*10;
+}
+
+static void keyPress(uint8_t k)
+{
+	uint8_t s = i.display_state;
+
+	if (s == SETUP_NO) {return;}						// the time display acts by the click or the hold
+	if (k != S2){
+		valueStep(k == S1);
+		return;
 	}
-}
-
-
-void event_single_key2(void)
-{
-
-}
-
-void event_single_key3(void)
-{
-	switch(i.display_state){
-		case SETUP_NO:
-		
-			break;
+	// "M" in the time and color setup: next step, the menu acts by the release
+	switch (s){
 		case SETUP_HOURS:
-			iface_flag05sReset();
-			--i.hoursSetupValue;
-			if ((i.hoursSetupValue&0x0f) == 0x0f)	{i.hoursSetupValue -= 0x06;}
-			if (i.hoursSetupValue > 0x23) 				{i.hoursSetupValue = 0x23;}
-			break;
-		
 		case SETUP_MINUTES:
-			iface_flag05sReset();
-			--i.minutesSetupValue;
-			if ((i.minutesSetupValue&0x0f) == 0x0f)	{i.minutesSetupValue -=0x06;}
-			if (i.minutesSetupValue > 0x59) 				{i.minutesSetupValue = 0x59;}
+			i.display_state++;
 			break;
-			
+
 		case SETUP_SECONDS:
-			iface_flag05sReset();
-			--i.secondsSetupValue;
-			if ((i.secondsSetupValue&0x0f) == 0x0f)	{i.secondsSetupValue -=0x06;}
-			if (i.secondsSetupValue > 0x59) 				{i.secondsSetupValue = 0x59;}
+			ds3231_write_time(&i.secondsSetupValue,&i.minutesSetupValue,&i.hoursSetupValue);
+			i.seconds = i.secondsSetupValue;
+			i.minutes = i.minutesSetupValue;
+			i.hours = i.hoursSetupValue;
+			iface_exit_setup();
 			break;
-		
+
 		case SETUP_R:
-			--i.setupValue;
-			displayRset(i.setupValue);
-			break;
-		
 		case SETUP_G:
-			--i.setupValue;
-			displayGset(i.setupValue);
+			EEPROM_set(R_ADDR + s - SETUP_R, EE(R_ADDR + s - SETUP_R));
+			i.display_state++;
 			break;
-		
+
 		case SETUP_B:
-			--i.setupValue;
-			displayBset(i.setupValue);
+			EEPROM_set(B_ADDR, e.b);
+			iface_exit_setup();
 			break;
-		
-		case  SETUP_NIGHT_BR_EN:
-		case	SETUP_NIGHT_RGB_EN:
-		case  SETUP_ANTIPOISONING_AT_NIGHT_ONLY:
-			if (i.setupValue){
-				i.setupValue = 0;
-			}else{
-				i.setupValue = 1;
-			}
-			break;
-			
-		case SETUP_BRIGHT:
-		case SETUP_NIGHT_BR:
-			if (--i.setupValue < 5){
-				i.setupValue = 5;
-			}
-			displaySetBright(i.setupValue);
-			break;
-		
-		case SETUP_NIGHT_BR_START_H:
-		case SETUP_NIGHT_BR_END_H:
-			iface_flag05sReset();
-			if (--i.setupValue > 23){
-				i.setupValue = 23;
-			}
-			break;
-		
-		case SETUP_NIGHT_BR_START_M:
-		case SETUP_NIGHT_BR_END_M:
-			iface_flag05sReset();
-			if (--i.setupValue > 59){
-				i.setupValue = 59;
-			}
-			break;
-			
+
 		default:
-			break;
+			return;
 	}
-	if (i.display_state!=SETUP_NO){
+	i.timeSetupCounter = 60*10;
+	bitmaskclr(ki.bf,S2_M);								// its release is not a click
+}
+
+static void keyClick(uint8_t k)
+{
+	if (i.display_state == SETUP_NO){
+		if (k == S1) {fxSelect(FX_AP_DEMO, AP_TYPE_ADDR, AP_TYPE_MAX);}
+		else if (k == S2) {fxSelect(FX_FLIP_DEMO, FLIP_ADDR, FLIP_MAX);}
+		else {RGBtoggle();}
+	}else if ((k == S2) && (i.display_state <= SETUP_MENU_LAST)){
+		iface_menu_next();
+	}
+}
+
+static void keyHold(uint8_t k)
+{
+	uint8_t s = i.display_state;
+	uint8_t lp = ki.lp_counter[k];
+
+	if (s == SETUP_NO){
+		if (lp < 2*10) {return;}
 		i.timeSetupCounter = 60*10;
-	}
-}
-
-void longpress_key1(void)
-{
-	if (ki.bf == KEY1_M){
-		if (i.display_state == SETUP_NO){
-			if (ki.lp_counter[KEY1] >= 2*10){
-				bitmaskclr(ki.bf,KEY1_M);
-			}
-		}else if (i.display_state != SETUP_NIGHT_BR_EN \
-					&& i.display_state != SETUP_NIGHT_RGB_EN && i.display_state != SETUP_ANTIPOISONING_AT_NIGHT_ONLY && i.display_state != SETUP_NO){
-			if (ki.lp_counter[KEY1] >= 18){
-				if(ki.kr_counter[KEY1] >= 1){
-					ki.kr_counter[KEY1] = 0;
-					event_single_key1 ();
-				}
-			}else if (ki.lp_counter[KEY1] >= 8){
-				if(ki.kr_counter[KEY1] >= 2){
-					ki.kr_counter[KEY1] = 0;
-					event_single_key1 ();
-				}
-			}
+		if (k == S1){
+			i.display_state = SETUP_HOURS;
+			i.hoursSetupValue = i.hours;
+			i.minutesSetupValue = i.minutes;
+			i.secondsSetupValue = i.seconds;
+			iface_show(100, IFACE_RGB_KEEP);
+		}else if (k == S2){
+			i.display_state = SETUP_ZERO;
+			iface_menu_preview();
+		}else{
+			i.display_state = SETUP_R;
+			iface_show(100, 100);
 		}
-	}
-}
-
-void longpress_key2(void)
-{
-	if (ki.bf == KEY2_M){
-		if (ki.lp_counter[KEY2] >= 2*10){
-			if (i.display_state == SETUP_NO){
-				i.display_state = SETUP_BRIGHT;
-				i.timeSetupCounter = 60*10;
-				displayRGBset(0);
-				i.setupValue = e.bright;
-				displaySetBright(i.setupValue);
-			}else{
-				i.display_state = SETUP_NO;
-			}
-			bitmaskclr(ki.bf,KEY2_M);
+		bitmaskclr(ki.bf,(uint8_t)(1 << k));
+	}else if (k == S2){
+		// settings menu: hold "M" for 1s - save the item and exit
+		if ((s <= SETUP_MENU_LAST) && (lp >= 1*10)){
+			EEPROM_set(s, EE(s));
+			iface_exit_setup();
+			bitmaskclr(ki.bf,S2_M);
 		}
-	}
-}
-
-void longpress_key3(void)
-{
-if (ki.bf == KEY3_M){
-		if (i.display_state == SETUP_NO){
-			if (ki.lp_counter[KEY3] >= 2*10){
-				displaySetBright(100);
-				i.display_state = SETUP_R;
-				i.setupValue = EEPROM_readByte(R_ADDR);
-				displayRset(EEPROM_readByte(R_ADDR));
-				displayGset(EEPROM_readByte(G_ADDR));
-				displayBset(EEPROM_readByte(B_ADDR));
-				i.timeSetupCounter = 60*10;
-				bitmaskclr(ki.bf,KEY3_M);
-			}
-		}else if (i.display_state != SETUP_NIGHT_BR_EN \
-					&& i.display_state != SETUP_NIGHT_RGB_EN && i.display_state != SETUP_ANTIPOISONING_AT_NIGHT_ONLY && i.display_state != SETUP_NO){
-			if (ki.lp_counter[KEY3] >= 18){
-				if(ki.kr_counter[KEY3] >= 1){
-					ki.kr_counter[KEY3] = 0;
-					event_single_key3 ();
-				}
-			}else if (ki.lp_counter[KEY3] >= 8){
-				if(ki.kr_counter[KEY3] >= 2){
-					ki.kr_counter[KEY3] = 0;
-					event_single_key3 ();
-				}
-			}
-		}
-	}
-}
-
-void fastReleaseKey1(void)
-{
-	if (ki.bf == KEY1_M){
-		if (ki.lp_counter[KEY1] < 1*10){
-			if (i.display_state == SETUP_NO){
-				event_single_key1();
-			}
-		}
-	}
-}
-
-void fastReleaseKey2(void)
-{
-	if (ki.bf == KEY2_M){
-		if (ki.lp_counter[KEY2] < 1*10){
-			switch (i.display_state){
-				case SETUP_NO:
-					i.display_state = SETUP_HOURS;
-					i.timeSetupCounter = 60*10;
-					i.hoursSetupValue = i.hours;
-					i.minutesSetupValue = i.minutes;
-					i.secondsSetupValue = i.seconds;
-					displaySetBright(100);
-					break;
-				case SETUP_HOURS:
-					i.display_state = SETUP_MINUTES;
-					break;
-					
-				case SETUP_MINUTES:
-					i.display_state = SETUP_SECONDS;
-					break;
-					
-				case SETUP_SECONDS:
-					ds3231_write_time(&i.secondsSetupValue,&i.minutesSetupValue,&i.hoursSetupValue);
-					i.display_state = SETUP_NO;
-					break;		
-					
-				case SETUP_R:
-					i.display_state++;
-					EEPROM_writeByte(R_ADDR,i.setupValue);
-					i.setupValue = EEPROM_readByte(G_ADDR);
-					break;
-				
-				case SETUP_G:
-					i.display_state++;
-					EEPROM_writeByte(G_ADDR,i.setupValue);
-					i.setupValue = EEPROM_readByte(B_ADDR);
-					break;
-				
-				case SETUP_B:
-					i.display_state = SETUP_NO;
-					EEPROM_writeByte(B_ADDR,i.setupValue);
-					break;
-				
-				case SETUP_BRIGHT:
-					i.display_state++;
-					e.bright = i.setupValue;
-					EEPROM_writeByte(BRIGHT_ADDR,e.bright);
-					i.setupValue = e.nBright;
-					displaySetBright(i.setupValue);
-					break;
-				
-				case SETUP_NIGHT_BR:
-					e.nBright = i.setupValue;
-					EEPROM_writeByte(NIGHT_BR_ADDR,e.nBright);
-					i.display_state++;
-					i.setupValue = e.nBrightEn;
-					displaySetBright(100);
-					break;
-				
-				case SETUP_NIGHT_BR_EN:
-					e.nBrightEn = i.setupValue;
-					EEPROM_writeByte(NIGHT_BR_EN_ADDR,e.nBrightEn);
-					i.display_state++;
-					i.setupValue = e.nBrightStartH;
-					break;
-				
-				case SETUP_NIGHT_BR_START_H:
-					e.nBrightStartH = i.setupValue;
-					EEPROM_writeByte(NIGHT_BR_START_H_ADDR,e.nBrightStartH);
-					i.display_state = SETUP_NIGHT_BR_START_M;
-					i.setupValue = e.nBrightStartM;
-					break;
-				
-				case SETUP_NIGHT_BR_START_M:
-					e.nBrightStartM = i.setupValue;
-					EEPROM_writeByte(NIGHT_BR_START_M_ADDR,e.nBrightStartM);
-					i.display_state = SETUP_NIGHT_BR_END_H;
-					i.setupValue = e.nBrightEndH;
-					break;
-				
-				case SETUP_NIGHT_BR_END_H:
-					e.nBrightEndH = i.setupValue;
-					EEPROM_writeByte(NIGHT_BR_STOP_H_ADDR,e.nBrightEndH);
-					i.display_state = SETUP_NIGHT_BR_END_M;
-					i.setupValue = e.nBrightEndM;
-					break;
-				
-				case SETUP_NIGHT_BR_END_M:
-					e.nBrightEndM = i.setupValue;
-					EEPROM_writeByte(NIGHT_BR_STOP_M_ADDR,e.nBrightEndM);
-					i.display_state = SETUP_NIGHT_RGB_EN;
-					i.setupValue = e.rgbAtNightEn;
-					break;
-				
-				case SETUP_NIGHT_RGB_EN:
-					e.rgbAtNightEn = i.setupValue;
-					EEPROM_writeByte(NIGHT_RGB_EN_ADDR,e.rgbAtNightEn);
-					i.display_state++;
-					i.setupValue = e.antipoisoningAtNihgtOnly;
-					break;
-				
-				case SETUP_ANTIPOISONING_AT_NIGHT_ONLY:
-					e.antipoisoningAtNihgtOnly = i.setupValue;
-					EEPROM_writeByte(ANTIPOISONING_AT_NIGHT_ONLY_ADDR,e.antipoisoningAtNihgtOnly);
-					i.display_state = SETUP_NO;
-					break;
-		
-				default:
-					i.display_state = SETUP_NO;
-					break;
-			}
-		}
-	}
-}
-
-void fastReleaseKey3(void)
-{
-	if (ki.bf == KEY3_M){
-		if (ki.lp_counter[KEY3] < 1*10){
-			if (i.display_state == SETUP_NO){
-				RGBtoggle();
-			}
+	}else if ((s > SETUP_MENU_LAST) || (eeMax[s] > 9)){
+		// key repeat for values, not for on/off items: 5 per second after 0.8s, 10 per second after 1.8s
+		if (ki.kr_counter[k] >= ((lp >= 18) ? 1 : (lp >= 8) ? 2 : 255)){
+			ki.kr_counter[k] = 0;
+			valueStep(k == S1);
 		}
 	}
 }

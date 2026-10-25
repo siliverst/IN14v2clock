@@ -5,23 +5,23 @@
 extern "C" {
 #endif
 
-#define KEY1_DOWN           0x01
-#define KEY2_DOWN           0x02
-#define KEY3_DOWN           0x03
+// key events: S1 "+", S2 "M", S3 "-", the release is the press | 0x80
+#define S1_DOWN           0x01
+#define S2_DOWN           0x02
+#define S3_DOWN           0x03
 
-#define KEY1_UP             0x81
-#define KEY2_UP             0x82
-#define KEY3_UP             0x83
+#define S1_UP             0x81
+#define S2_UP             0x82
+#define S3_UP             0x83
 
 typedef struct
 {
-	uint8_t KEY1_reg;
-	uint8_t KEY2_reg;
-	uint8_t KEY3_reg;
-	uint8_t Refresh;
+	uint8_t S1_reg;
+	uint8_t S2_reg;
+	uint8_t S3_reg;
 	uint8_t HeadPtr,TailPtr;
 	uint8_t Buffer[8];
-}Keyboard; 
+}Keyboard;
 
 void keyboard_init(void);
 void keyboard_refresh(void);

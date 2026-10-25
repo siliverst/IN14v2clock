@@ -1,109 +1,40 @@
 #include <stdint.h>
 #include "iface.h"
 #include "keyevents.h"
-#include "service_timing.h"
 #include "ds3231.h"
+#include "display.h"
 #include "macro.h"
 #include "eeprom.h"
+#include "rgb.h"
+#include "effects.h"
 #include <string.h>
 
 Iface i;
-antipoisoning ap;
 
-static void timer50msProc(void);
 static void iface_display(void);
 static void iface_disp2decDigit (uint8_t value, uint8_t *d0, uint8_t *d1);
 static void iface_disp3decDigit (uint16_t value, uint8_t *d0, uint8_t *d1, uint8_t *d2);
 static void iface_disp2bcdDigit (uint8_t value, uint8_t *d0, uint8_t *d1);
 
-static void apCounterProc(void);
-static uint8_t apLoop(uint8_t dig);
-static void apProc (void);
-static void apUpdateTime (void);
-static uint8_t apInWork (void);
+
+// settings menu: the item number "group item" of every step (BCD)
+static const uint8_t menuNum[SETUP_MENU_LAST + 1] = {0x11, 0x12, 0x21, 0x22, 0x23, 0x24, 0x25, 0x31, 0x32, 0x32, 0x33, 0x33,
+                                                     0x41, 0x42, 0x43, 0x44, 0x45};
+
+static uint16_t nowMinutes;		// current time, minutes from midnight
+static uint8_t rgbBlink;			// 100ms ticks of the backlight blinking, see RGBtoggle()
+
+// smooth change of the brightness (day/night, K2): the shown values go to the targets by iface_fade()
+static uint8_t brightNow, brightTarget, rgbNow, rgbTarget;
+static uint8_t rgbFast;								// backlight fade: 1 - fast (K2) till the target, 0 - as the digits (day/night)
+
 
 void iface_init( void )
 {
 	i.display_state = SETUP_NO;
 	ds3231_read_time(&i.seconds,&i.minutes,&i.hours);
-	memset(ap.flagEn,0,sizeof(ap.flagEn));
-	apUpdateTime();	// two calls toupdate the digsNew array;
-	apUpdateTime();
-	//displayRGBset(0);
-}
-
-void iface_proc ( void ) 
-{
-	static uint8_t proc_fase = 0;
-	static uint8_t counter50ms = 0;
-	static uint8_t counter100ms = 0;
-	static uint8_t localFlag100ms = 0;
-	
-	keyevents_proc();
-	
-	if (i.flag10ms) {
-		set_service_timing_mutex();
-		proc_fase++;
-		switch(proc_fase){
-			case 1: 
-				// counter for time get time from ds3231 and start blinking dot if needed
-				if (++counter50ms> 5-1){
-					counter50ms = 0;
-					timer50msProc();
-				}
-				break;
-			
-			case 2:
-				if (++counter100ms> 10-1){
-					counter100ms = 0;
-					localFlag100ms = 1;	//flag for pocess 100ms tasks
-					
-					//counter for blinking digits while time setup
-					if (++i.counter1s > 10-1){
-						i.counter1s = 0;
-						i.flag05s = 0;
-					}
-					if (i.counter1s > 4){
-						i.flag05s = 1;
-					}
-					
-					//counter for blinking digits while RGB setup
-					if (i.flag100ms){
-						i.flag100ms = 0;
-					} else {
-						i.flag100ms = 1;
-					}
-				}
-				break;
-			
-			case 3:
-				//counter for antipoisoning
-				apCounterProc();
-				break;
-			
-			case 4:
-				if (localFlag100ms){
-					keyevents_counters();
-				}
-				break;
-			
-			case 5:
-				if (localFlag100ms) {
-					iface_display();
-					localFlag100ms = 0;
-				}
-				proc_fase = 0;
-				i.flag10ms = 0;
-				reset_service_timing_mutex();
-				break;
-			
-			default:
-				proc_fase = 0;
-				i.flag10ms = 0;
-				reset_service_timing_mutex();
-				break;
-		}
-	}
+	iface_apply_mode();
+	iface_show(brightTarget, IFACE_RGB_KEEP);		// digits at once, the backlight fades in
 }
 
 void iface_flag05sReset(void)
@@ -112,302 +43,260 @@ void iface_flag05sReset(void)
 	i.flag05s = 0;
 }
 
-void iface_10ms_proc_en (void)
+/*
+every 100ms: blinking counters, antipoisoning, key timers, display
+*/
+void iface_100ms_proc (void)
 {
-	i.flag10ms = 1;
-}
-
-static void timer50msProc(void)
-{
-	static uint8_t secondsLast;
+	//counter for blinking digits while time setup, 0.5s on/off
+	if (++i.counter1s > 10-1){
+		i.counter1s = 0;
+	}
+	i.flag05s = (i.counter1s > 4);
+	displaySetPwm(e.pwm);							// e.pwm is changed in the menu for the preview
 	
+	//counter for blinking digits while RGB setup
+	i.flag100ms ^= 1;
+	
+	keyevents_counters();
+	iface_display();
+}
+
+static uint8_t fade(uint8_t now, uint8_t target, uint8_t step)
+{
+	if (now + step < target) {return now + step;}
+	if (now > target + step) {return now - step;}
+	return target;
+}
+
+// every 50ms: digits 1%, backlight 1% or 4% after K2 (perceptually linear), full scale in 5s / 1.25s
+static void iface_fade(void)
+{
+	uint8_t b = fade(brightNow, brightTarget, 1);
+	
+	if (b != brightNow){
+		brightNow = b;
+		displaySetBright(b);
+	}
+	b = fade(rgbNow, rgbTarget, rgbFast ? 4 : 1);
+	if ((b != rgbNow) && !rgbBlink){
+		rgbNow = b;
+		RGBset(b);
+	}
+	if (b == rgbTarget) {rgbFast = 0;}
+}
+
+// set the brightness at once (setup modes), rgb = IFACE_RGB_KEEP - do not change the backlight
+void iface_show(uint8_t digits, uint8_t rgb)
+{
+	brightNow = digits;
+	displaySetBright(digits);
+	if (rgb != IFACE_RGB_KEEP){
+		rgbNow = rgb;
+		RGBset(rgb);
+	}
+}
+
+#ifdef AP_TEST
+/*
+test firmware (python -I tools/build.py -DAP_TEST): the time runs 6 times faster from 09:57,
++1 minute every 10s, antipoisoning at every minute
+*/
+static uint8_t dec_to_bcd(uint8_t v)
+{
+	return (uint8_t)((v / 10) << 4) | (v % 10);
+}
+
+static void ap_test_time(void)
+{
+	static uint16_t m = 9*60 + 57;
+	static uint8_t sLast;
+	
+	if (((i.seconds & 0x0F) == 0) && (i.seconds != sLast)) {m = (m + 1) % (24*60);}
+	sLast = i.seconds;
+	i.minutes = dec_to_bcd(m % 60);
+	i.hours = dec_to_bcd(m / 60);
+}
+#endif
+
+// every 50ms: get time from ds3231, smooth brightness change
+void iface_50ms_proc (void)
+{
 	if (i.display_state == SETUP_NO){
+		iface_fade();
 		ds3231_read_time(&i.seconds,&i.minutes,&i.hours);
+#ifdef AP_TEST
+		ap_test_time();
+#endif
 	}
 }
 
-static void apCounterProc(void)
+
+// time digits (BCD time) by the time format and the leading zero setting
+void iface_time_digits(uint8_t *d, uint8_t seconds, uint8_t minutes, uint8_t hours)
 {
-	if (++ap.counter > 10-1){
-		ap.counter = 0;
-		apProc();
+	uint8_t h = bcd_to_decimal(hours);
+
+	iface_disp2bcdDigit(seconds, &d[0], &d[1]);
+	iface_disp2bcdDigit(minutes, &d[2], &d[3]);
+	if (e.f1224){
+		h %= 12;
+		if (!h) {h = 12;}
 	}
+	iface_disp2decDigit(h, &d[4], &d[5]);
+	if (!d[5] && !e.zeroEn) {d[5] = NIXIE_OFF;}
 }
 
-//0,9,8,7,6,5,4,3,2,1,0,9,8,7,6,5,4,3,2,1,0
-// border cases:
-// 5->0;543210    432198760
-// 3->0;3210      219876540
-// 2->0;210       198765430
-// if new lower than old -> counting to 9, and skip new, but last (9th) should be new.
-static uint8_t apLoop(uint8_t dig) 
+/*
+day or night mode by the current time: digits and backlight brightness
+*/
+void iface_apply_mode (void)
 {
-	if ((ap.digsNew[dig] >= ap.digsOld[dig])||(ap.digsNew[dig] == 0 && ap.digsOld[dig] == 9)){
-		if (--ap.digsCurrent[dig] > 9) {
-			ap.digsCurrent[dig] = 9;
-		}
-		if (ap.digsCurrent[dig] == ap.digsNew[dig]){
-			return 1;
-		}else{
-			return 0;
-		}
-	}
-	else{
-		if (ap.digsCurrent[dig] == ap.digsOld[dig]) {ap.digsCounter[dig] = 8;}
-		if (ap.digsCounter[dig]--){
-			--ap.digsCurrent[dig];
-			if (ap.digsCurrent[dig] == ap.digsNew[dig]) {--ap.digsCurrent[dig];};
-			if (ap.digsCurrent[dig] > 9) {ap.digsCurrent[dig] = 9;}
-			return 0;
-		}else{
-			ap.digsCurrent[dig] = ap.digsNew[dig];
-			return 1;
-		}
-	}
-}
-
-void apStart (void)
-{
-	memset(ap.flagEn,1,sizeof(ap.flagEn));
-	ap.procCounter = AP_CYCLES;
-	ap.counter = 10-1;
-	apUpdateTime();
-}
-
-static uint8_t apInWork (void)
-{
-	if (ap.flagEn[0]||ap.flagEn[1]||ap.flagEn[2]||ap.flagEn[3]||ap.flagEn[4]||ap.flagEn[5]){
-		return 1;
+	uint16_t start_minutes;
+	uint16_t end_minutes;
+	nowMinutes		= time_to_minutes(bcd_to_decimal(i.hours), bcd_to_decimal(i.minutes));
+	start_minutes	= time_to_minutes(e.nightStartH, e.nightStartM);
+	end_minutes		= time_to_minutes(e.nightEndH, e.nightEndM);
+	i.night = e.nightEn && is_time_in_interval(nowMinutes, start_minutes, end_minutes);
+	
+	if (i.night){
+		brightTarget = e.nBright;
+		rgbTarget = e.rgbNightEn ? e.rgbNightBright : 0;
 	}else{
-		return 0;
+		brightTarget = e.bright;
+		rgbTarget = e.rgbDayEn ? e.rgbBright : 0;
 	}
 }
 
-//once in 100ms
-static void apProc (void)
+/*
+settings menu: show the brightness which is being set, the backlight is off for other items.
+PWM frequency: the value at the night brightness (the flicker is seen at a low brightness), else full.
+*/
+void iface_menu_preview (void)
 {
-	uint8_t d;
-	uint8_t brighMaxBitMask = 0;
-//todo move ap.procCounter/AP_CYCLES to the local variable
-	if (apInWork()){
-		for (d=0;d<ap.procCounter/AP_CYCLES;d++){
-			if (ap.flagEn[d] == 1){
-				if (apLoop(d)){
-					ap.flagEn[d] = 2;	//one more cycle
-				}
-				i.display[d] = ap.digsCurrent[d];
-				displayNixie(&i.display[0],bitset(brighMaxBitMask,d));
-			}else if (ap.flagEn[d] == 2){
-				ap.flagEn[d] = 0;
-			}
-		}
-		if (ap.procCounter < NIXIE_COUNT*AP_CYCLES){
-			++ap.procCounter;
-		}
-	}
+	uint8_t s = i.display_state;
+	uint8_t b = 100;
+	
+	if ((s == SETUP_BRIGHT) || (s == SETUP_NIGHT_BR)) {b = EE(s);}
+	if (s == SETUP_PWM) {b = e.nBright ? e.nBright : BRIGHT_MIN;}
+	iface_show(b, (s == SETUP_RGB_BR || s == SETUP_RGB_NIGHT_BR) ? EE(s) : 0);
 }
 
-static void apUpdateTime (void)
+/*
+settings menu, K2: save the item and go to the next one, after the last one - exit.
+The values are changed in e (for the preview), they are saved here or reloaded from EEPROM on exit.
+*/
+void iface_menu_next (void)
 {
-	memcpy(ap.digsOld, ap.digsNew, sizeof(ap.digsOld));
-	memcpy(ap.digsCurrent, ap.digsOld, sizeof(ap.digsCurrent));
-	iface_disp2bcdDigit(i.seconds,		&ap.digsNew[0],&ap.digsNew[1]);
-	iface_disp2bcdDigit(i.minutes,		&ap.digsNew[2],&ap.digsNew[3]);
-	iface_disp2bcdDigit(i.hours,			&ap.digsNew[4],&ap.digsNew[5]);
+	uint8_t s = i.display_state;
+
+	EEPROM_set(s, EE(s));
+	if (s == SETUP_MENU_LAST){
+		iface_exit_setup();
+		return;
+	}
+	i.display_state = ++s;
+	i.timeSetupCounter = 60*10;
+	iface_menu_preview();
+}
+
+/*
+back to the time display, by the last key or by timeout.
+Settings are reloaded from EEPROM to drop not saved changes (the color in RGB setup).
+*/
+void iface_exit_setup (void)
+{
+	i.display_state = SETUP_NO;
+	rgbBlink = 0;
+	EEPROM_dataInit();
+	iface_apply_mode();
 }
 
 static void iface_display(void)
 {
 	static uint8_t secondsLast = 0xff;
 	static uint8_t minutesLast = 0xff;
+	uint8_t interval;
+	uint8_t s = i.display_state;
+	uint8_t v, a;
 	
-	uint16_t current_minutes;
-	uint16_t start_minutes;
-	uint16_t end_minutes;
-	
-	switch(i.display_state){
+	switch(s){
 		case SETUP_NO:
-			current_minutes = time_to_minutes(bcd_to_decimal(i.hours), bcd_to_decimal(i.minutes));
-			start_minutes 	=	time_to_minutes(e.nBrightStartH, e.nBrightStartM);
-			end_minutes 		= time_to_minutes(e.nBrightEndH, e.nBrightEndM);
+			if (rgbBlink){
+				--rgbBlink;
+				RGBset((rgbBlink % 6) >= 3 ? 50 : 0);			// 0.3s on, 0.3s off
+			}
 			
-			if (minutesLast == 0xff) {
-				minutesLast = i.minutes;
-			}
-			else if (minutesLast != i.minutes){
-				minutesLast = i.minutes;
-				if (e.antipoisoningAtNihgtOnly){
-					if (is_time_in_interval(current_minutes, start_minutes, end_minutes)) {
-						if (i.minutes%2 == 0){
-							apStart();
-						}
-					}
-				} else {
-					if (i.minutes%6 == 0){
-						apStart();
-					}
-				}
-			}
-			if (!ap.flagEn[0]){
-				i.display[0] = i.seconds&0x0f;	//it's need for displaying seconds when ap on seconds is done.
-			}
-			if (!apInWork()) 
-			{
-				iface_disp2bcdDigit(i.seconds, 	&i.display[0], &i.display[1]);
-				iface_disp2bcdDigit(i.minutes, 	&i.display[2], &i.display[3]);
-				iface_disp2bcdDigit(i.hours, 		&i.display[4], &i.display[5]);
-				displayNixie(&i.display[0],0);
+			if (i.seconds != secondsLast){
+				secondsLast = i.seconds;
+				iface_apply_mode();
 				
-				if (i.seconds != secondsLast){
-					secondsLast = i.seconds;
-					
-					if (e.nBrightEn){
-						if (is_time_in_interval(current_minutes, start_minutes, end_minutes)) {
-							displaySetBright(e.nBright);
-							if (e.rgbGlobalEn){
-								if (e.rgbAtNightEn){
-									displayRGBset(1);
-								} else {
-									displayRGBset(0);
-								}
-							}
-						} else {
-							displaySetBright(e.bright);
-							if (e.rgbGlobalEn){
-								displayRGBset(1);
-							}
-						}
-					} else {
-						displaySetBright(e.bright);
-						if (e.rgbGlobalEn){
-							displayRGBset(1);
+				if (minutesLast != i.minutes){
+					if (minutesLast != 0xff){		// not at start
+						// at night with digits off antipoisoning is not done, it disturbs people
+						interval = i.night ? (e.nBright ? e.apNight : 0) : e.apDay;
+#ifdef AP_TEST
+						interval = 1;
+#endif
+						if (interval && (nowMinutes % interval == 0)){
+							fxApStart();
 						}
 					}
+					minutesLast = i.minutes;
 				}
 			}
-			break;
+			break;				// the digits are shown by fx_10ms()
 		
 		case SETUP_HOURS:
-			iface_disp2bcdDigit(i.secondsSetupValue, 	&i.display[0], &i.display[1]);
-			iface_disp2bcdDigit(i.minutesSetupValue, 	&i.display[2], &i.display[3]);
-			iface_disp2bcdDigit(i.hoursSetupValue, 		&i.display[4], &i.display[5]);
-			if(i.flag05s){
-				i.display[4] = NIXIE_OFF;
-				i.display[5] = NIXIE_OFF;
-			}
-			displayNixie(&i.display[0],0);
-			break;
-		
 		case SETUP_MINUTES:
-			iface_disp2bcdDigit(i.secondsSetupValue, 	&i.display[0], &i.display[1]);
-			iface_disp2bcdDigit(i.minutesSetupValue, 	&i.display[2], &i.display[3]);
-			iface_disp2bcdDigit(i.hoursSetupValue, 		&i.display[4], &i.display[5]);
-			if(i.flag05s){
-				i.display[2] = NIXIE_OFF;
-				i.display[3] = NIXIE_OFF;
-			}
-			displayNixie(&i.display[0],0);
-			break;
-			
 		case SETUP_SECONDS:
-			iface_disp2bcdDigit(i.secondsSetupValue, 	&i.display[0], &i.display[1]);
-			iface_disp2bcdDigit(i.minutesSetupValue, 	&i.display[2], &i.display[3]);
-			iface_disp2bcdDigit(i.hoursSetupValue, 		&i.display[4], &i.display[5]);
-			if(i.flag05s){
-				i.display[0] = NIXIE_OFF;
-				i.display[1] = NIXIE_OFF;
+			iface_time_digits(i.display, i.secondsSetupValue, i.minutesSetupValue, i.hoursSetupValue);
+			// the edited pair blinks: 0.5s on/off, the hours in 12h format: slow - AM, fast - PM
+			v = (s == SETUP_HOURS) && e.f1224 && (i.hoursSetupValue >= 0x12) ? i.flag100ms : i.flag05s;
+			if (v){
+				a = (SETUP_SECONDS - s) * 2;
+				i.display[a] = NIXIE_OFF;
+				i.display[a + 1] = NIXIE_OFF;
 			}
 			displayNixie(&i.display[0],0);
 			break;
-			
+
 		case SETUP_R:
 		case SETUP_G:
 		case SETUP_B:
-			iface_disp3decDigit (i.setupValue, &i.display[0], &i.display[1], &i.display[2]);
-			if (i.flag100ms){
-				i.display[5] = NIXIE_OFF;
-			}else{
-				i.display[5] = i.display_state-6;
-			}
+			// the value in the right tubes, the blinking channel number 1..3 in the left tube
+			iface_disp3decDigit (EE(R_ADDR + s - SETUP_R), &i.display[0], &i.display[1], &i.display[2]);
 			i.display[3] = NIXIE_OFF;
 			i.display[4] = NIXIE_OFF;
+			i.display[5] = i.flag100ms ? NIXIE_OFF : s - SETUP_R + 1;
 			displayNixie(&i.display[0],0);
 			break;
-		
-		case SETUP_BRIGHT:
-		case SETUP_NIGHT_BR:
-			i.display[5] = i.display_state;
-			i.display[4] = NIXIE_OFF;	
-			i.display[3] = NIXIE_OFF;	
-			iface_disp3decDigit (i.setupValue, &i.display[0], &i.display[1], &i.display[2]);
-			displayNixie(&i.display[0],bin(00100000));
-		break;
-		
-		case SETUP_NIGHT_BR_EN:
-		case SETUP_NIGHT_RGB_EN:
-		case SETUP_ANTIPOISONING_AT_NIGHT_ONLY:
-			if (i.display_state > 6){
-				iface_disp2decDigit(i.display_state,&i.display[2],&i.display[3]);
-			}else{
-				i.display[5] = i.display_state;
-				i.display[4] = NIXIE_OFF;	
-			}
-			i.display[3] = NIXIE_OFF;	
-			i.display[2] = NIXIE_OFF;	
-			i.display[1] = NIXIE_OFF;
-			i.display[0] = i.setupValue;
-			displayNixie(&i.display[0],0);
-			break;
-		
-		case SETUP_NIGHT_BR_START_H:
-			iface_disp2decDigit(i.setupValue, &i.display[2], &i.display[3]);
-			i.display[5] = SETUP_NIGHT_BR_START_H;
-			i.display[4] = NIXIE_OFF;
-			if(i.flag05s){
-				i.display[3] = NIXIE_OFF;
-				i.display[2] = NIXIE_OFF;
-			}
-			iface_disp2decDigit(e.nBrightStartM, &i.display[0], &i.display[1]);
-			displayNixie(&i.display[0],0);
-			break;
-			
-		case SETUP_NIGHT_BR_START_M:	
-			iface_disp2decDigit(i.setupValue, &i.display[0], &i.display[1]);
-			i.display[5] = SETUP_NIGHT_BR_START_H;
-			i.display[4] = NIXIE_OFF;
-			if(i.flag05s){
-				i.display[1] = NIXIE_OFF;
-				i.display[0] = NIXIE_OFF;
-			}
-			iface_disp2decDigit(e.nBrightStartH, &i.display[2], &i.display[3]);
-			displayNixie(&i.display[0],0);
-			break;
-			
-		case SETUP_NIGHT_BR_END_H:
-			iface_disp2decDigit(i.setupValue, &i.display[2], &i.display[3]);
-			i.display[5] = SETUP_NIGHT_BR_END_H;
-			i.display[4] = NIXIE_OFF;
-			if(i.flag05s){
-				i.display[3] = NIXIE_OFF;
-				i.display[2] = NIXIE_OFF;
-			}
-			iface_disp2decDigit(e.nBrightEndM, &i.display[0], &i.display[1]);
-			displayNixie(&i.display[0],0);
-			break;
-		
-		case SETUP_NIGHT_BR_END_M:
-			iface_disp2decDigit(i.setupValue, &i.display[0], &i.display[1]);
-			i.display[5] = SETUP_NIGHT_BR_END_H;
-			i.display[4] = NIXIE_OFF;
-			if(i.flag05s){
-				i.display[1] = NIXIE_OFF;
-				i.display[0] = NIXIE_OFF;
-			}
-			iface_disp2decDigit(e.nBrightEndH, &i.display[2], &i.display[3]);
-			displayNixie(&i.display[0],0);
-			break;
-		
+
 		default:
+			/*
+			settings menu: the item number "group item" in the 2 left tubes at full brightness, the value in the right tubes
+			(no leading zeros). The night start and end: the time HH MM, the edited part blinks.
+			*/
+			if (s > SETUP_MENU_LAST) {break;}
+			if ((s >= SETUP_NIGHT_START_H) && (s <= SETUP_NIGHT_END_M)){
+				a = (s <= SETUP_NIGHT_START_M) ? NIGHT_START_H_ADDR : NIGHT_END_H_ADDR;
+				iface_disp2decDigit(EE(a + 1), &i.display[0], &i.display[1]);
+				iface_disp2decDigit(EE(a), &i.display[2], &i.display[3]);
+				if (i.flag05s){
+					a = (s == a) ? 2 : 0;
+					i.display[a] = NIXIE_OFF;
+					i.display[a + 1] = NIXIE_OFF;
+				}
+			}else{
+				v = EE(s);
+				iface_disp3decDigit(v, &i.display[0], &i.display[1], &i.display[2]);
+				if (v < 100) {i.display[2] = NIXIE_OFF;}
+				if (v < 10) {i.display[1] = NIXIE_OFF;}
+				i.display[3] = NIXIE_OFF;
+			}
+			i.display[4] = menuNum[s] & 0x0F;
+			i.display[5] = menuNum[s] >> 4;
+			displayNixie(i.display, bin(00110000));
 			break;
 	}
 }
@@ -439,11 +328,6 @@ uint8_t bcd_to_decimal(uint8_t bcd)
 	return ((bcd >> 4) * 10) + (bcd & 0x0F);
 }
 
-uint8_t decimal_to_bcd(uint8_t decimal) 
-{
-	return ((decimal / 10) << 4) | (decimal % 10);
-}
-
 uint16_t time_to_minutes(uint8_t hours, uint8_t minutes) 
 {
 	return (uint16_t)hours * 60 + (uint16_t)minutes;
@@ -461,37 +345,19 @@ uint8_t is_time_in_interval(uint16_t current_minutes, uint16_t start_minutes, ui
 }
 
 /*
-switch state of rgb
-if time is in night interval - control nigt rgb enable flag
-if time in in normal interval - control global rgb enable flag
+K2: switch the backlight on/off for the current interval (day or night).
+If the backlight brightness of the interval is 0, blink 3 times at 50% to show
+that it is switched off by the settings, the on/off state is not changed.
 */
 void RGBtoggle ( void )
 {
-	uint16_t current_minutes; 
-	uint16_t start_minutes;
-	uint16_t end_minutes;
+	uint8_t a = i.night ? RGB_NIGHT_EN_ADDR : RGB_DAY_EN_ADDR;
 	
-	current_minutes = time_to_minutes(bcd_to_decimal(i.hours), bcd_to_decimal(i.minutes));
-	start_minutes 	=	time_to_minutes(e.nBrightStartH, e.nBrightStartM);
-	end_minutes 		= time_to_minutes(e.nBrightEndH, e.nBrightEndM);
-		
-	if (is_time_in_interval(current_minutes, start_minutes, end_minutes)&&e.nBrightEn) {
-		if (e.rgbAtNightEn){
-			e.rgbAtNightEn = 0;
-		} else {
-			e.rgbAtNightEn = 1;
-		}
-		displayRGBset(e.rgbAtNightEn);
-		EEPROM_writeByte(NIGHT_RGB_EN_ADDR,e.rgbGlobalEn);
-	} 
-	else {
-		if (e.rgbGlobalEn){
-			e.rgbGlobalEn = 0;
-		} else {
-			e.rgbGlobalEn = 1;
-		}
-		displayRGBset(e.rgbGlobalEn);
-		EEPROM_writeByte(RGB_EN_ADDR,e.rgbGlobalEn);
+	if (!(i.night ? e.rgbNightBright : e.rgbBright)){
+		rgbBlink = 3*6;
+		return;
 	}
+	EEPROM_set(a, !EE(a));
+	rgbFast = 1;
+	iface_apply_mode();
 }
-
