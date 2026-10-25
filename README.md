@@ -3,7 +3,11 @@
 Alternate firmware for the GeekStyles IN14 V2 Nixie clock PCB (6 x IN-14: hours, minutes, seconds).
 
 ## Version
-- **2.00**: Rework of the firmware, based on [IN12v3clock](https://github.com/siliverst/IN12v3clock) 2.00 (the same platform with 4 tubes):
+- **2.00 RC1** (release candidate): **not tested on the hardware yet**, the board was not at hand while the firmware
+  was ported. It builds with both compilers and the logic was checked by models, but the keys, the digits wiring,
+  the IN-14 cathode order and the smooth change at a low brightness still need a check on a real clock.
+  Please report what does not work. The previous tested firmware is the version 1.00 (the git history, the commit 94c69c4).
+  Rework of the firmware, based on [IN12v3clock](https://github.com/siliverst/IN12v3clock) 2.00 (the same platform with 4 tubes):
   - day and night modes with smooth brightness change, separate digits and backlight brightness, the night digits can be off;
   - perceptually linear backlight brightness (CIE lightness), backlight on/off for day and night separately;
   - smooth change of the digits: every changed digit (every second too) fades out and the new one fades in;
